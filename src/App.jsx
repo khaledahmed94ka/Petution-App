@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { BottomNav } from './components/BottomNav';
 
 import { DashboardView } from './views/DashboardView';
 import { ClientsView } from './views/ClientsView';
@@ -27,6 +28,7 @@ import { X } from 'lucide-react';
 const MainApp = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { activeDrawer, setActiveDrawer } = useApp();
 
   if (isRegistering) {
@@ -57,13 +59,21 @@ const MainApp = () => {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         onRegisterClick={() => setIsRegistering(true)}
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
       />
       <div className="main-content">
-        <Header />
+        <Header onMenuToggle={() => setIsMobileOpen(prev => !prev)} />
         <div className="page-wrapper">
           {renderView()}
         </div>
       </div>
+
+      <BottomNav 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onMenuToggle={() => setIsMobileOpen(prev => !prev)} 
+      />
 
       {/* Render Active Slide-Over Drawers */}
       {activeDrawer === 'addClient' && <AddClientDrawer />}

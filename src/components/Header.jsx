@@ -1,8 +1,8 @@
 import React from 'react';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, Menu } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export const Header = () => {
+export const Header = ({ onMenuToggle }) => {
   const { 
     settings, 
     notifications, 
@@ -19,10 +19,20 @@ export const Header = () => {
 
   return (
     <header className="top-header">
-      <div className="breadcrumb">
-        <span className="text-muted">Petution</span>
-        <span className="separator">/</span>
-        <span className="font-semibold">{settings.orgName}</span>
+      <div className="header-left">
+        <button 
+          className="icon-btn mobile-menu-btn" 
+          title="Toggle Navigation Menu"
+          onClick={onMenuToggle}
+        >
+          <Menu size={20} />
+        </button>
+
+        <div className="breadcrumb">
+          <span className="text-muted">Petution</span>
+          <span className="separator">/</span>
+          <span className="font-semibold">{settings.orgName}</span>
+        </div>
       </div>
 
       <div className="header-actions">
@@ -175,6 +185,21 @@ export const Header = () => {
           font-size: 0.725rem;
           color: var(--text-muted);
           margin-top: 2px;
+        }
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .mobile-menu-btn {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          .mobile-menu-btn {
+            display: flex;
+          }
         }
       `}</style>
     </header>

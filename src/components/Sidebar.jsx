@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick }) => {
+export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen, onCloseMobile }) => {
   const { 
     settings, 
     workspaces, 
@@ -27,6 +27,11 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick }) => {
     setShowWorkspaceMenu,
     setActiveDrawer
   } = useApp();
+
+  const handleNavClick = (id) => {
+    setActiveTab(id);
+    if (onCloseMobile) onCloseMobile();
+  };
 
   const mainNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,7 +52,10 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick }) => {
   ];
 
   return (
-    <aside className="sidebar">
+    <>
+      {isMobileOpen && <div className="sidebar-overlay" onClick={onCloseMobile} />}
+      <aside className={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
+
       {/* Workspace Switcher Header */}
       <div className="workspace-header-wrapper">
         <div 
@@ -110,7 +118,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick }) => {
             <button
               key={item.id}
               className={`nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => handleNavClick(item.id)}
             >
               <Icon size={18} />
               <span>{item.label}</span>
@@ -131,7 +139,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick }) => {
             <button
               key={item.id}
               className={`nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => handleNavClick(item.id)}
             >
               <Icon size={18} />
               <span>{item.label}</span>
@@ -139,6 +147,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick }) => {
           );
         })}
       </nav>
+
 
       {/* User Footer */}
       <div 
@@ -411,5 +420,6 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick }) => {
         }
       `}</style>
     </aside>
+    </>
   );
 };

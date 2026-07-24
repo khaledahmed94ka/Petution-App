@@ -332,6 +332,22 @@ export const DashboardView = () => {
 
         .text-teal { color: var(--primary-teal); }
         .text-green { color: #16a34a; }
+
+        @media (max-width: 768px) {
+          .revenue-banner {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px;
+          }
+          .revenue-banner .view-all-btn {
+            width: 100%;
+            justify-content: center;
+          }
+          .greeting-header h2 {
+            font-size: 1.25rem;
+          }
+        }
       `}</style>
     </div>
   );

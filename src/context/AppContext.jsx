@@ -188,7 +188,12 @@ export const AppProvider = ({ children }) => {
 
   const [settings, setSettingsState] = useState(() => {
     const saved = localStorage.getItem('petution_settings');
-    return saved ? JSON.parse(saved) : initialSettings;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.orgName === 'Petfast') parsed.orgName = 'Petution';
+      return parsed;
+    }
+    return initialSettings;
   });
 
   const [notifications, setNotifications] = useState([
