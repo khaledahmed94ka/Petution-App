@@ -115,7 +115,7 @@ export const ClientsView = () => {
                   <tr key={client.id}>
                     <td className="font-semibold">{client.name}</td>
                     <td>
-                      <div className="phone-cell">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>{primaryPhone?.phone || '—'}</span>
                         {primaryPhone?.hasWhatsapp && (
                           <MessageCircle size={14} className="text-green" title="WhatsApp Enabled" />
@@ -123,7 +123,7 @@ export const ClientsView = () => {
                       </div>
                     </td>
                     <td>
-                      <div className="tags-cell">
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                         {client.tags?.map((t, idx) => (
                           <span key={idx} className="badge badge-gray">{t}</span>
                         ))}
@@ -152,35 +152,6 @@ export const ClientsView = () => {
           </tbody>
         </table>
       </div>
-
-      <style>{`
-        .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-        }
-
-        .page-header h2 {
-          font-size: 1.5rem;
-          font-weight: 700;
-        }
-
-        .phone-cell {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .tags-cell {
-          display: flex;
-          gap: 4px;
-          flex-wrap: wrap;
-        }
-
-        .text-xs { font-size: 0.75rem; }
-        .text-green { color: #16a34a; }
-      `}</style>
     </div>
   );
 };

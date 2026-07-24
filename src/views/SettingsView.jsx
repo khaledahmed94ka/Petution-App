@@ -85,7 +85,7 @@ export const SettingsView = () => {
       {/* Tab Content */}
       {activeTab === 'Organization' ? (
         <div className="card settings-card">
-          <div className="card-header border-bottom">
+          <div className="card-header-section">
             <h4 className="font-semibold">Organization Profile</h4>
             <p className="text-xs text-muted">Manage your organization details, slug, and avatar.</p>
           </div>
@@ -150,7 +150,7 @@ export const SettingsView = () => {
               />
             </div>
 
-            <div className="flex justify-end margin-top-md">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
               <button type="submit" className="btn-primary">
                 Save Changes
               </button>
@@ -159,14 +159,14 @@ export const SettingsView = () => {
         </div>
       ) : activeTab === 'Data Backup & Migration' ? (
         <div className="card settings-card">
-          <div className="card-header border-bottom">
+          <div className="card-header-section">
             <h4 className="font-semibold flex items-center gap-xs">
               <Database size={20} className="text-teal" /> Full System Data Backup & Migration
             </h4>
             <p className="text-xs text-muted">Export complete clinic records or restore data from another clinic workspace.</p>
           </div>
 
-          <div className="backup-section margin-top-md">
+          <div className="margin-top-md">
             <div className="card info-card margin-bottom-md">
               <h5 className="font-semibold">Full System Backup (.JSON)</h5>
               <p className="text-xs text-muted margin-top-xs">
@@ -184,8 +184,8 @@ export const SettingsView = () => {
               <p className="text-xs text-muted margin-top-xs">
                 Upload a previously exported Petution `.json` backup file to restore all clinic data.
               </p>
-              <div className="margin-top-sm flex items-center gap-md">
-                <label className="btn-secondary clickable inline-flex items-center gap-xs">
+              <div className="margin-top-sm" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <label className="btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   <Upload size={16} /> Choose Backup File
                   <input type="file" accept=".json" onChange={handleFullRestoreJSON} className="file-input-hidden" />
                 </label>
@@ -201,20 +201,33 @@ export const SettingsView = () => {
       )}
 
       <style>{`
-        .settings-card { max-width: 680px; }
-        .card-header { padding-bottom: 12px; margin-bottom: 20px; }
-        .border-bottom { border-bottom: 1px solid var(--border-card); }
-        .settings-form { display: flex; flex-direction: column; gap: 16px; }
-        .avatar-upload-row { display: flex; justify-content: center; margin-bottom: 8px; }
+        .settings-card { 
+          max-width: 100%; 
+        }
+        .card-header-section { 
+          padding-bottom: 12px; 
+          margin-bottom: 16px; 
+          border-bottom: 1px solid var(--border-card); 
+        }
+        .settings-form { 
+          display: flex; 
+          flex-direction: column; 
+          gap: 14px; 
+        }
+        .avatar-upload-row { 
+          display: flex; 
+          justify-content: center; 
+          margin-bottom: 8px; 
+        }
         .profile-avatar-circle {
-          width: 80px;
-          height: 80px;
+          width: 72px;
+          height: 72px;
           border-radius: 50%;
           background: #e2e8f0;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.75rem;
+          font-size: 1.5rem;
           font-weight: 700;
           color: #475569;
           position: relative;
@@ -234,7 +247,20 @@ export const SettingsView = () => {
           justify-content: center;
           color: var(--text-muted);
         }
-        .margin-top-md { margin-top: 16px; }
+        .info-card {
+          padding: 16px;
+        }
+
+        @media (min-width: 640px) {
+          .settings-card {
+            max-width: 680px;
+          }
+          .profile-avatar-circle {
+            width: 80px;
+            height: 80px;
+            font-size: 1.75rem;
+          }
+        }
       `}</style>
     </div>
   );

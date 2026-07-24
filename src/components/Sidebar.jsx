@@ -163,18 +163,6 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
 
 
       <style>{`
-        .sidebar {
-          width: 240px;
-          background: var(--sidebar-bg);
-          border-right: 1px solid var(--sidebar-border);
-          display: flex;
-          flex-direction: column;
-          padding: 16px 12px;
-          height: 100vh;
-          position: sticky;
-          top: 0;
-        }
-
         .workspace-header-wrapper {
           position: relative;
           margin-bottom: 16px;
@@ -198,7 +186,8 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
           position: absolute;
           top: calc(100% + 4px);
           left: 0;
-          width: 260px;
+          width: 100%;
+          max-width: 260px;
           background: #ffffff;
           border: 1px solid var(--border-card);
           border-radius: var(--radius-md);
@@ -250,6 +239,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
           display: flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
         }
 
         .ws-item-info {
@@ -317,12 +307,14 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
           align-items: center;
           justify-content: center;
           font-size: 0.9rem;
+          flex-shrink: 0;
         }
 
         .workspace-info {
           display: flex;
           flex-direction: column;
           flex: 1;
+          min-width: 0;
         }
 
         .workspace-title {
@@ -330,6 +322,9 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
           font-weight: 600;
           color: var(--text-main);
           line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .workspace-sub {
@@ -341,20 +336,22 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
           display: flex;
           flex-direction: column;
           gap: 2px;
+          overflow-y: auto;
         }
 
         .nav-item {
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 9px 12px;
+          padding: 10px 12px;
           border-radius: var(--radius-sm);
-          font-size: 0.875rem;
+          font-size: 0.85rem;
           font-weight: 500;
           color: var(--sidebar-text);
           transition: all 0.15s ease;
           width: 100%;
           text-align: left;
+          min-height: 44px;
         }
 
         .nav-item:hover:not(.active) {
@@ -370,7 +367,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
         .nav-divider {
           height: 1px;
           background: var(--sidebar-border);
-          margin: 16px 0;
+          margin: 12px 0;
         }
 
         .user-profile-footer {
@@ -394,12 +391,14 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
           display: flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
         }
 
         .user-details {
           display: flex;
           flex-direction: column;
           overflow: hidden;
+          min-width: 0;
         }
 
         .user-name {

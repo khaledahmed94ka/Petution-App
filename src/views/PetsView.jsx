@@ -148,15 +148,6 @@ export const PetsView = () => {
       </div>
 
       <style>{`
-        .table-controls-stack {
-          padding: 16px 20px;
-          border-bottom: 1px solid var(--border-card);
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .margin-top-sm { margin-top: 4px; }
         .margin-left-xs { margin-left: 6px; }
       `}</style>
     </div>

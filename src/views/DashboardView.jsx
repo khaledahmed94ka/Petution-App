@@ -159,12 +159,13 @@ export const DashboardView = () => {
 
       <style>{`
         .greeting-header h2 {
-          font-size: 1.5rem;
+          font-size: 1.2rem;
           font-weight: 700;
+          line-height: 1.4;
         }
 
         .owner-badge {
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           background: #f1f5f9;
           padding: 2px 8px;
           border-radius: 9999px;
@@ -176,27 +177,28 @@ export const DashboardView = () => {
           background: var(--primary-teal);
           color: #ffffff;
           border-radius: var(--radius-lg);
-          padding: 28px 32px;
+          padding: 20px 16px;
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin: 20px 0 32px;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+          margin: 16px 0 20px;
         }
 
         .banner-sub {
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           letter-spacing: 0.05em;
           opacity: 0.9;
         }
 
         .banner-amount {
-          font-size: 2.25rem;
+          font-size: 1.75rem;
           font-weight: 800;
           margin: 4px 0;
         }
 
         .banner-change {
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           opacity: 0.9;
         }
 
@@ -205,12 +207,14 @@ export const DashboardView = () => {
           color: #ffffff;
           padding: 10px 20px;
           border-radius: var(--radius-sm);
-          font-size: 0.875rem;
+          font-size: 0.85rem;
           font-weight: 500;
           display: flex;
           align-items: center;
           gap: 8px;
           transition: background 0.15s ease;
+          width: 100%;
+          justify-content: center;
         }
 
         .view-all-btn:hover {
@@ -218,11 +222,11 @@ export const DashboardView = () => {
         }
 
         .section-title {
-          margin-bottom: 12px;
+          margin-bottom: 10px;
         }
 
         .section-title h3 {
-          font-size: 1.1rem;
+          font-size: 1rem;
           font-weight: 600;
         }
 
@@ -231,30 +235,23 @@ export const DashboardView = () => {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 16px;
+          padding: 12px;
           text-align: center;
         }
 
         .card-val {
-          font-size: 1.5rem;
+          font-size: 1.3rem;
           font-weight: 700;
         }
 
         .card-lbl {
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           color: var(--text-muted);
-        }
-
-        .alert-cards-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-          margin-bottom: 24px;
         }
 
         .alert-card {
           border-radius: var(--radius-md);
-          padding: 20px;
+          padding: 14px;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -266,34 +263,28 @@ export const DashboardView = () => {
         .grad-teal { background: var(--grad-teal); }
 
         .alert-val {
-          font-size: 1.75rem;
+          font-size: 1.5rem;
           font-weight: 800;
           display: block;
         }
 
         .alert-lbl {
-          font-size: 0.85rem;
+          font-size: 0.78rem;
           font-weight: 600;
           color: rgba(15, 23, 42, 0.8);
-        }
-
-        .shortcuts-row {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-          margin-bottom: 32px;
         }
 
         .shortcut-btn {
           background: #ffffff;
           border: 1px solid var(--border-card);
           border-radius: var(--radius-md);
-          padding: 16px;
+          padding: 14px 10px;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
+          gap: 8px;
           font-weight: 600;
+          font-size: 0.82rem;
           color: var(--text-main);
           box-shadow: var(--shadow-sm);
           transition: all 0.15s ease;
@@ -305,7 +296,7 @@ export const DashboardView = () => {
         }
 
         .queue-card {
-          margin-top: 16px;
+          margin-top: 8px;
         }
 
         .queue-header h4 {
@@ -317,35 +308,48 @@ export const DashboardView = () => {
           display: flex;
           flex-direction: column;
           gap: 8px;
-          margin-top: 16px;
+          margin-top: 12px;
         }
 
         .queue-item {
           display: flex;
           align-items: center;
-          gap: 16px;
-          padding: 12px 16px;
+          gap: 12px;
+          padding: 10px 12px;
           background: #f8fafc;
           border-radius: var(--radius-sm);
           border: 1px solid var(--border-card);
+          font-size: 0.85rem;
+          flex-wrap: wrap;
         }
 
-        .text-teal { color: var(--primary-teal); }
-        .text-green { color: #16a34a; }
-
-        @media (max-width: 768px) {
+        @media (min-width: 640px) {
+          .greeting-header h2 {
+            font-size: 1.5rem;
+          }
           .revenue-banner {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 14px;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            padding: 28px 32px;
+          }
+          .view-all-btn {
+            width: auto;
+          }
+          .banner-amount {
+            font-size: 2.25rem;
+          }
+          .alert-val {
+            font-size: 1.75rem;
+          }
+          .alert-card {
+            padding: 20px;
+          }
+          .pulse-card {
             padding: 16px;
           }
-          .revenue-banner .view-all-btn {
-            width: 100%;
-            justify-content: center;
-          }
-          .greeting-header h2 {
-            font-size: 1.25rem;
+          .card-val {
+            font-size: 1.5rem;
           }
         }
       `}</style>

@@ -230,25 +230,6 @@ export const ProductsView = () => {
       </div>
 
       <style>{`
-        .tab-nav {
-          display: flex;
-          border-bottom: 1px solid var(--border-card);
-          margin-top: 8px;
-        }
-
-        .tab-btn {
-          padding: 8px 16px;
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: var(--text-muted);
-          border-bottom: 2px solid transparent;
-        }
-
-        .tab-btn.active {
-          color: var(--primary-teal);
-          border-bottom-color: var(--primary-teal);
-        }
-
         .text-red { color: #dc2626; font-weight: 700; }
       `}</style>
     </div>

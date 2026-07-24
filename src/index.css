@@ -59,7 +59,7 @@ button {
 
 input, select, textarea {
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 16px; /* Prevents iOS zoom on focus */
   min-height: 44px;
 }
 
@@ -79,11 +79,11 @@ input, select, textarea {
   flex-direction: column;
   min-width: 0;
   background-color: var(--bg-app);
-  padding-bottom: 75px; /* Clear space for mobile bottom nav */
+  padding-bottom: 70px; /* Clear space for mobile bottom nav */
 }
 
 .page-wrapper {
-  padding: 12px 12px 85px 12px;
+  padding: 12px;
   flex: 1;
 }
 
@@ -104,46 +104,51 @@ input, select, textarea {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .mobile-menu-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-sm);
   color: var(--text-main);
+  flex-shrink: 0;
 }
 
 .breadcrumb {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.825rem;
+  font-size: 0.8rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 180px;
+  min-width: 0;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
   position: relative;
+  flex-shrink: 0;
 }
 
 .icon-btn:hover {
@@ -201,13 +206,13 @@ input, select, textarea {
 .page-header {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: stretch;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
 .page-header h2 {
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
@@ -226,12 +231,13 @@ input, select, textarea {
   flex-wrap: wrap;
 }
 
-.page-header .btn-primary, .page-header .btn-secondary {
-  flex: 1;
-  min-width: 110px;
+.page-header .btn-primary,
+.page-header .btn-secondary {
+  flex: 1 1 auto;
+  min-width: 0;
   justify-content: center;
-  padding: 8px 10px;
-  font-size: 0.8rem;
+  padding: 10px 10px;
+  font-size: 0.78rem;
   white-space: nowrap;
 }
 
@@ -240,13 +246,14 @@ input, select, textarea {
   background-color: var(--primary-teal);
   color: #ffffff;
   font-weight: 500;
-  padding: 8px 16px;
+  padding: 10px 16px;
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.875rem;
+  gap: 6px;
+  font-size: 0.85rem;
   transition: background 0.15s ease;
+  white-space: nowrap;
 }
 
 .btn-primary:hover {
@@ -258,13 +265,14 @@ input, select, textarea {
   color: var(--text-main);
   border: 1px solid var(--border-card);
   font-weight: 500;
-  padding: 8px 16px;
+  padding: 10px 14px;
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.875rem;
+  gap: 6px;
+  font-size: 0.85rem;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .btn-secondary:hover {
@@ -276,18 +284,18 @@ input, select, textarea {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 14px;
   box-shadow: var(--shadow-sm);
 }
 
 .card-title {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 500;
 }
 
 .card-value {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--text-main);
   margin-top: 4px;
@@ -296,20 +304,20 @@ input, select, textarea {
 .metrics-grid-4, 
 .metrics-grid-16, 
 .alert-cards-grid, 
-.shortcuts-row, 
+.shortcuts-row,
 .plans-grid,
 .roles-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .metrics-grid-7 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .metrics-grid-7 .card {
@@ -317,11 +325,11 @@ input, select, textarea {
 }
 
 .metrics-grid-7 .card-value {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
 }
 
 .metrics-grid-7 .card-title {
-  font-size: 0.725rem;
+  font-size: 0.7rem;
 }
 
 /* Form Controls */
@@ -340,13 +348,14 @@ input, select, textarea {
 
 .form-control {
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border-card);
   border-radius: var(--radius-sm);
   background: #ffffff;
   color: var(--text-main);
   outline: none;
   transition: border-color 0.15s ease;
+  font-size: 16px; /* Prevents iOS zoom */
 }
 
 .form-control:focus {
@@ -387,7 +396,7 @@ input, select, textarea {
 }
 
 .drawer-header {
-  padding: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border-card);
   display: flex;
   justify-content: space-between;
@@ -395,7 +404,7 @@ input, select, textarea {
 }
 
 .drawer-header h3 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
@@ -410,15 +419,16 @@ input, select, textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .drawer-footer {
-  padding: 16px;
+  padding: 14px 16px;
   border-top: 1px solid var(--border-card);
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
   background: #f8fafc;
 }
 
@@ -437,23 +447,24 @@ input, select, textarea {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  min-width: 600px;
+  min-width: 560px;
 }
 
 .data-table th {
   background: #f8fafc;
   padding: 10px 12px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border-card);
+  white-space: nowrap;
 }
 
 .data-table td {
   padding: 10px 12px;
-  font-size: 0.825rem;
+  font-size: 0.8rem;
   color: var(--text-main);
   border-bottom: 1px solid var(--border-card);
 }
@@ -466,7 +477,14 @@ input, select, textarea {
 .table-controls-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  padding: 12px;
+}
+
+.table-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 12px;
 }
 
@@ -491,19 +509,26 @@ input, select, textarea {
 /* Tabs */
 .tab-nav {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   border-bottom: 1px solid var(--border-card);
   overflow-x: auto;
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tab-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-btn {
-  padding: 8px 12px;
-  font-size: 0.8rem;
+  padding: 10px 12px;
+  font-size: 0.78rem;
   font-weight: 500;
   color: var(--text-muted);
   border-bottom: 2px solid transparent;
+  flex-shrink: 0;
 }
 
 .tab-btn.active {
@@ -518,7 +543,7 @@ input, select, textarea {
   align-items: center;
   padding: 2px 8px;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
@@ -527,17 +552,68 @@ input, select, textarea {
 .badge-rose { background: #ffe4e6; color: #be123c; }
 .badge-gray { background: #f1f5f9; color: #475569; }
 
+/* Filter Bars */
+.filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.filter-bar .form-group {
+  width: 100%;
+}
+
+.self-end {
+  align-self: stretch;
+}
+
+/* Empty states */
+.empty-state {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 /* Utilities */
 .flex { display: flex; }
 .flex-1 { flex: 1; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
 .gap-xs { gap: 4px; }
 .gap-sm { gap: 8px; }
 .gap-md { gap: 16px; }
+.text-muted { color: var(--text-muted); }
+.text-xs { font-size: 0.75rem; }
+.text-sm { font-size: 0.85rem; }
+.text-teal { color: var(--primary-teal); }
+.text-green { color: #16a34a; }
+.text-red { color: #dc2626; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.margin-top-xs { margin-top: 6px; display: block; }
+.margin-top-sm { margin-top: 10px; }
+.margin-top-md { margin-top: 16px; }
+.margin-top-lg { margin-top: 24px; }
+.margin-bottom-md { margin-bottom: 16px; }
+.margin-bottom-lg { margin-bottom: 24px; }
+.w-full { width: 100%; }
+.text-center { text-align: center; }
+.inline-flex { display: inline-flex; }
+
+/* Hidden file inputs */
+.file-input-hidden {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
 
 /* ==========================================================================
-   2. PROGRESSIVE ENHANCEMENT BREAKPOINT 1: SMALL TABLETS / LARGE PHONES (>= 640px)
+   2. PROGRESSIVE ENHANCEMENT: SMALL TABLETS / LARGE PHONES (>= 640px)
    ========================================================================== */
 
 @media (min-width: 640px) {
@@ -545,9 +621,12 @@ input, select, textarea {
     padding: 20px 24px;
   }
 
+  .top-header {
+    padding: 0 20px;
+  }
+
   .breadcrumb {
-    max-width: 320px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
   }
 
   .page-header {
@@ -560,7 +639,8 @@ input, select, textarea {
     width: auto;
   }
 
-  .page-header .btn-primary, .page-header .btn-secondary {
+  .page-header .btn-primary,
+  .page-header .btn-secondary {
     flex: initial;
     width: auto;
   }
@@ -571,10 +651,15 @@ input, select, textarea {
   .plans-grid,
   .roles-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
   .metrics-grid-7 {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .metrics-grid-16 {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .form-row {
@@ -593,13 +678,65 @@ input, select, textarea {
     align-items: center;
   }
 
+  .table-controls {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
   .search-input-wrapper {
     max-width: 280px;
+  }
+
+  .filter-bar {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+
+  .filter-bar .form-group {
+    width: auto;
+    min-width: 140px;
+  }
+
+  .self-end {
+    align-self: flex-end;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .card-value {
+    font-size: 1.5rem;
+  }
+
+  input, select, textarea {
+    font-size: 0.9rem;
+  }
+
+  .form-control {
+    font-size: 0.9rem;
   }
 }
 
 /* ==========================================================================
-   3. PROGRESSIVE ENHANCEMENT BREAKPOINT 2: DESKTOPS & LAPTOPS (>= 1024px)
+   3. PROGRESSIVE ENHANCEMENT: TABLETS (>= 768px)
+   ========================================================================== */
+
+@media (min-width: 768px) {
+  .metrics-grid-4,
+  .alert-cards-grid,
+  .shortcuts-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .metrics-grid-16 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ==========================================================================
+   4. PROGRESSIVE ENHANCEMENT: DESKTOPS & LAPTOPS (>= 1024px)
    ========================================================================== */
 
 @media (min-width: 1024px) {

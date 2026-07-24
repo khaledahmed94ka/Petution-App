@@ -39,7 +39,7 @@ export const AnalyticsView = () => {
           <h2>Analytics</h2>
           <p className="text-muted">Useful clinic analytics across clients, visits, revenue, operations, and doctors.</p>
         </div>
-        <div className="flex gap-md">
+        <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>
           <select 
             className="form-control"
             value={doctorFilter}
@@ -100,22 +100,33 @@ export const AnalyticsView = () => {
       </div>
 
       <style>{`
-        .flex { display: flex; }
-        .gap-md { gap: 12px; }
-        .margin-bottom-lg { margin-bottom: 28px; }
-        .summary-banner { padding: 24px; }
+        .summary-banner { padding: 16px; }
         .banner-metrics-row {
           display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 20px;
-          margin: 16px 0;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin: 12px 0;
         }
         .kpi-card {
           display: flex;
           flex-direction: column;
           justify-content: space-between;
         }
-        .margin-top-xs { margin-top: 6px; display: block; }
+
+        @media (min-width: 640px) {
+          .summary-banner { padding: 24px; }
+          .banner-metrics-row {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+          }
+        }
+
+        @media (min-width: 768px) {
+          .banner-metrics-row {
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+          }
+        }
       `}</style>
     </div>
   );

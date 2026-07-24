@@ -19,10 +19,12 @@ export const InvoicesView = () => {
           <h2>Invoices</h2>
           <p className="text-muted">Manage billing and invoice states for clinic: petution.</p>
         </div>
-        <button className="btn-primary" onClick={() => setActiveDrawer('addInvoice')}>
-          <Plus size={18} />
-          Add Invoice
-        </button>
+        <div className="flex gap-sm">
+          <button className="btn-primary" onClick={() => setActiveDrawer('addInvoice')}>
+            <Plus size={18} />
+            Add Invoice
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}

@@ -36,17 +36,18 @@ export const BottomNav = ({ activeTab, setActiveTab, onMenuToggle }) => {
 
       <style>{`
         .bottom-nav {
-          display: none;
+          display: flex;
           position: fixed;
           bottom: 0;
           left: 0;
           right: 0;
-          height: 60px;
+          height: 64px;
           background: #ffffff;
           border-top: 1px solid var(--border-card);
           box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
           z-index: 180;
           padding: 4px 8px;
+          padding-bottom: env(safe-area-inset-bottom, 4px);
         }
 
         .bottom-nav-item {
@@ -57,12 +58,14 @@ export const BottomNav = ({ activeTab, setActiveTab, onMenuToggle }) => {
           justify-content: center;
           gap: 2px;
           color: var(--text-muted);
-          font-size: 0.7rem;
+          font-size: 0.68rem;
           font-weight: 500;
           background: transparent;
           border: none;
           padding: 6px 0;
           border-radius: var(--radius-sm);
+          transition: color 0.15s ease;
+          min-height: 44px;
         }
 
         .bottom-nav-item.active {
@@ -70,9 +73,9 @@ export const BottomNav = ({ activeTab, setActiveTab, onMenuToggle }) => {
           font-weight: 700;
         }
 
-        @media (max-width: 768px) {
+        @media (min-width: 1024px) {
           .bottom-nav {
-            display: flex;
+            display: none !important;
           }
         }
       `}</style>
