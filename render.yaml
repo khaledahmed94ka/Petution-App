@@ -2,13 +2,11 @@ services:
   - type: web
     name: petution-app
     env: static
-    buildCommand: npm install && npm run build
+    buildCommand: npx vite build
     staticPublishPath: ./dist
     envVars:
       - key: NODE_VERSION
         value: 20.11.0
-      - key: NPM_CONFIG_PRODUCTION
-        value: "false"
     routes:
       - type: rewrite
         source: /*
