@@ -196,12 +196,16 @@ export const AppProvider = ({ children }) => {
     return initialSettings;
   });
 
-  const [notifications, setNotifications] = useState([
-    { id: 'n-1', title: 'Welcome to Petution!', time: '10m ago', read: false },
-    { id: 'n-2', title: 'System trial period active (14 days left)', time: '1h ago', read: false }
-  ]);
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('petution_notifications');
+    return saved ? JSON.parse(saved) : [
+      { id: 'n-1', title: 'Welcome to Petution!', time: '10m ago', read: false },
+      { id: 'n-2', title: 'System trial period active (14 days left)', time: '1h ago', read: false }
+    ];
+  });
 
   // Modal & View States
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [activeDrawer, setActiveDrawer] = useState(null);
   const [activeModalItem, setActiveModalItem] = useState(null);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
@@ -238,6 +242,10 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('petution_invoices', JSON.stringify(invoices));
   }, [invoices]);
+
+  useEffect(() => {
+    localStorage.setItem('petution_notifications', JSON.stringify(notifications));
+  }, [notifications]);
 
   const updateSettings = (newSettings) => {
     setSettingsState(newSettings);
@@ -552,6 +560,8 @@ export const AppProvider = ({ children }) => {
         setSettings: updateSettings,
         notifications,
         setNotifications,
+        activeTab,
+        setActiveTab,
         activeDrawer,
         setActiveDrawer,
         activeModalItem,

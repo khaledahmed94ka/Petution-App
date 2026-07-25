@@ -6,20 +6,48 @@ export const AnalyticsView = () => {
   const [doctorFilter, setDoctorFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('Last 3 months');
 
-  const totalPaidRevenue = invoices
+  const now = new Date();
+  let startDate = new Date();
+  if (timeRange === 'Last 3 months') {
+    startDate.setMonth(now.getMonth() - 3);
+  } else if (timeRange === 'This month') {
+    startDate.setDate(1);
+  } else if (timeRange === 'Year to date') {
+    startDate.setMonth(0, 1);
+  }
+
+  const dateOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  const dateRangeText = `${startDate.toLocaleDateString('en-US', dateOptions)} - ${now.toLocaleDateString('en-US', dateOptions)}`;
+
+  const isAfterStart = (dateString) => {
+    if (!dateString) return false;
+    return new Date(dateString) >= startDate;
+  };
+
+  const filteredVisits = visits.filter(v => {
+    const passDate = isAfterStart(v.date || v.createdAt);
+    const passDoctor = doctorFilter === 'all' || v.doctorName?.toLowerCase().includes(doctorFilter.toLowerCase());
+    return passDate && passDoctor;
+  });
+
+  const filteredClients = clients.filter(c => isAfterStart(c.createdAt));
+  const filteredPets = pets.filter(p => isAfterStart(p.createdAt));
+  const filteredInvoices = invoices.filter(i => isAfterStart(i.createdAt));
+
+  const totalPaidRevenue = filteredInvoices
     .filter(i => i.status === 'paid')
     .reduce((sum, i) => sum + i.totalAmount, 0);
 
   const kpis = [
     { title: 'Net revenue', value: `${totalPaidRevenue} EGP`, sub: 'Collected payments after refunds' },
-    { title: 'Total visits', value: visits.length, sub: 'All visits scheduled in the selected period' },
+    { title: 'Total visits', value: filteredVisits.length, sub: 'All visits scheduled in the selected period' },
     { title: 'Completion rate', value: '0%', sub: 'Completed visits divided by total visits' },
-    { title: 'New clients', value: clients.length, sub: 'Clients created during this period' },
+    { title: 'New clients', value: filteredClients.length, sub: 'Clients created during this period' },
     { title: 'Total clients', value: clients.length, sub: 'Client base available at end of period' },
     { title: 'Outstanding revenue', value: '0 EGP', sub: 'Invoice totals still unpaid' },
     { title: 'Profit estimate', value: `${totalPaidRevenue} EGP`, sub: 'Net revenue minus known product costs' },
     { title: 'Canceled visits', value: 0, sub: 'Visits canceled in the period' },
-    { title: 'New pets', value: pets.length, sub: 'Pets created during this period' },
+    { title: 'New pets', value: filteredPets.length, sub: 'Pets created during this period' },
     { title: 'Services sold', value: 0, sub: 'Total service units added to invoices' },
     { title: 'Returning clients', value: 0, sub: 'Clients with more than one visit' },
     { title: 'Reopen rate', value: '0%', sub: 'Visits reopened after completion' },
@@ -62,7 +90,7 @@ export const AnalyticsView = () => {
 
       {/* Summary Banner Card */}
       <div className="card summary-banner margin-bottom-lg">
-        <span className="text-muted text-xs font-semibold">Apr 24, 2026 - Jul 24, 2026</span>
+        <span className="text-muted text-xs font-semibold">{dateRangeText}</span>
         <div className="banner-metrics-row">
           <div>
             <span className="card-title">Net revenue</span>
@@ -70,7 +98,7 @@ export const AnalyticsView = () => {
           </div>
           <div>
             <span className="card-title">Total visits</span>
-            <div className="card-value">{visits.length}</div>
+            <div className="card-value">{filteredVisits.length}</div>
           </div>
           <div>
             <span className="card-title">Completion rate</span>
@@ -78,7 +106,7 @@ export const AnalyticsView = () => {
           </div>
           <div>
             <span className="card-title">New clients</span>
-            <div className="card-value">{clients.length}</div>
+            <div className="card-value">{filteredClients.length}</div>
           </div>
           <div>
             <span className="card-title">Total clients</span>

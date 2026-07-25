@@ -6,11 +6,17 @@ import { exportToCSV } from '../utils/dataExportImport';
 export const ClientsView = () => {
   const { clients, pets, setActiveDrawer } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showTagFilter, setShowTagFilter] = useState(false);
+  const [selectedTag, setSelectedTag] = useState('');
 
-  const filteredClients = clients.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.phones.some(p => p.phone.includes(searchTerm))
-  );
+  const allTags = Array.from(new Set(clients.flatMap(c => c.tags || [])));
+
+  const filteredClients = clients.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.phones.some(p => p.phone.includes(searchTerm));
+    const matchesTag = selectedTag ? c.tags?.includes(selectedTag) : true;
+    return matchesSearch && matchesTag;
+  });
 
   const handleExport = () => {
     const exportData = clients.map(c => ({
@@ -83,10 +89,25 @@ export const ClientsView = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="btn-secondary">
-            <Filter size={16} />
-            Filter tags
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button className="btn-secondary" onClick={() => setShowTagFilter(!showTagFilter)}>
+              <Filter size={16} />
+              Filter tags {selectedTag && `(${selectedTag})`}
+            </button>
+            {showTagFilter && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, background: 'white', border: '1px solid #ccc', padding: '10px', zIndex: 10, minWidth: '150px', borderRadius: '4px', marginTop: '4px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
+                <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>Select Tag</div>
+                <div style={{ cursor: 'pointer', padding: '4px' }} onClick={() => { setSelectedTag(''); setShowTagFilter(false); }}>
+                  All Tags
+                </div>
+                {allTags.map(tag => (
+                  <div key={tag} style={{ cursor: 'pointer', padding: '4px', background: selectedTag === tag ? '#eee' : 'transparent', borderRadius: '4px' }} onClick={() => { setSelectedTag(tag); setShowTagFilter(false); }}>
+                    {tag}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <table className="data-table">

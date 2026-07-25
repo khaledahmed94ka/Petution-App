@@ -152,6 +152,32 @@ export const AddPetDrawer = () => {
             </div>
           </div>
 
+          <div className="form-row">
+            <div className="form-group flex gap-xs" style={{ alignItems: 'center', marginTop: '30px' }}>
+              <input 
+                type="checkbox" 
+                id="castrated-checkbox"
+                checked={castrated}
+                onChange={(e) => setCastrated(e.target.checked)}
+              />
+              <label htmlFor="castrated-checkbox" style={{ margin: 0 }}>Neutered/Spayed</label>
+            </div>
+            <div className="form-group">
+              <label>Temperament</label>
+              <select 
+                className="form-control"
+                value={temperament}
+                onChange={(e) => setTemperament(e.target.value)}
+              >
+                <option value="Calm">Calm</option>
+                <option value="Playful">Playful</option>
+                <option value="Aggressive">Aggressive</option>
+                <option value="Shy">Shy</option>
+                <option value="Friendly">Friendly</option>
+              </select>
+            </div>
+          </div>
+
           <div className="form-group">
             <label>Breed (optional)</label>
             <input 

@@ -5,9 +5,13 @@ import { useApp } from '../context/AppContext';
 export const InvoicesView = () => {
   const { invoices, pets, setActiveDrawer } = useApp();
   const [statusFilter, setStatusFilter] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const filteredInvoices = invoices.filter(i => {
     if (statusFilter !== 'all' && i.status !== statusFilter) return false;
+    if (fromDate && i.createdAt < fromDate) return false;
+    if (toDate && i.createdAt > toDate) return false;
     return true;
   });
 
@@ -46,15 +50,25 @@ export const InvoicesView = () => {
 
           <div className="form-group">
             <label>From date</label>
-            <input type="date" className="form-control" />
+            <input 
+              type="date" 
+              className="form-control" 
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
           </div>
 
           <div className="form-group">
             <label>To date</label>
-            <input type="date" className="form-control" />
+            <input 
+              type="date" 
+              className="form-control" 
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
           </div>
 
-          <button className="btn-secondary self-end" onClick={() => setStatusFilter('all')}>
+          <button className="btn-secondary self-end" onClick={() => { setStatusFilter('all'); setFromDate(''); setToDate(''); }}>
             Clear filters
           </button>
         </div>

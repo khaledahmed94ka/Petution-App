@@ -26,10 +26,9 @@ import { InviteMemberDrawer } from './components/drawers/InviteMemberDrawer';
 import { X } from 'lucide-react';
 
 const MainApp = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [isRegistering, setIsRegistering] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { activeDrawer, setActiveDrawer } = useApp();
+  const { activeTab, setActiveTab, activeDrawer, setActiveDrawer } = useApp();
 
   if (isRegistering) {
     return <RegisterClinicView onComplete={() => setIsRegistering(false)} />;

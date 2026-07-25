@@ -14,7 +14,7 @@ import {
 import { useApp } from '../context/AppContext';
 
 export const DashboardView = () => {
-  const { clients, pets, visits, invoices, setActiveDrawer } = useApp();
+  const { clients, pets, visits, invoices, setActiveDrawer, setActiveTab } = useApp();
 
   const totalRevenue = invoices
     .filter(i => i.status === 'paid')
@@ -35,7 +35,7 @@ export const DashboardView = () => {
           <h1 className="banner-amount">{totalRevenue} EGP</h1>
           <span className="banner-change">+0% vs yesterday</span>
         </div>
-        <button className="view-all-btn">
+        <button className="view-all-btn" onClick={() => setActiveTab('visits')}>
           View All Visits <ArrowRight size={16} />
         </button>
       </div>
@@ -83,28 +83,28 @@ export const DashboardView = () => {
       </div>
 
       <div className="alert-cards-grid">
-        <div className="alert-card grad-amber">
+        <div className="alert-card grad-amber" onClick={() => setActiveTab('clients')}>
           <div className="alert-content">
             <span className="alert-val">0</span>
             <span className="alert-lbl">Need action</span>
           </div>
           <ArrowRight size={18} className="alert-arrow" />
         </div>
-        <div className="alert-card grad-rose">
+        <div className="alert-card grad-rose" onClick={() => setActiveTab('products')}>
           <div className="alert-content">
             <span className="alert-val">0</span>
             <span className="alert-lbl">Low stock products</span>
           </div>
           <ArrowRight size={18} className="alert-arrow" />
         </div>
-        <div className="alert-card grad-teal">
+        <div className="alert-card grad-teal" onClick={() => setActiveTab('visits')}>
           <div className="alert-content">
             <span className="alert-val">0</span>
             <span className="alert-lbl">Upcoming Follow-ups</span>
           </div>
           <ArrowRight size={18} className="alert-arrow" />
         </div>
-        <div className="alert-card grad-rose">
+        <div className="alert-card grad-rose" onClick={() => setActiveTab('invoices')}>
           <div className="alert-content">
             <span className="alert-val">{invoices.filter(i => i.status === 'pending').length}</span>
             <span className="alert-lbl">Invoices</span>

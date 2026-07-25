@@ -9,13 +9,17 @@ export const AddVisitDrawer = () => {
   const [selectedPet, setSelectedPet] = useState(pets[0]?.id || '');
   const [doctorName, setDoctorName] = useState('Dr. Khaled ElGendy');
   const [visitType, setVisitType] = useState('Check-up');
-  const [date, setDate] = useState('2026-07-24');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('08:00 PM');
   const [state, setState] = useState('scheduled');
   const [reason, setReason] = useState('General checkup');
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!selectedPet || !date) {
+      alert('Please fill out all required fields (Pet and Visit Date).');
+      return;
+    }
     addVisit({
       clientId: selectedClient,
       petId: selectedPet,

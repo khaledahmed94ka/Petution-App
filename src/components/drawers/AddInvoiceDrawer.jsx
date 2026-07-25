@@ -39,6 +39,10 @@ export const AddInvoiceDrawer = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!selectedPet || !selectedProduct) {
+      alert('Please select both a Pet and a Billable Item/Service.');
+      return;
+    }
     addInvoice({
       petId: selectedPet,
       status: invoiceState,

@@ -140,7 +140,12 @@ export const VisitsView = () => {
                       </span>
                     </td>
                     <td>
-                      <button className="btn-secondary text-xs">Manage Visit</button>
+                      <button 
+                        className="btn-secondary text-xs"
+                        onClick={() => alert(`Visit Details:\nPet: ${pet ? pet.name : 'Unknown'}\nDoctor: ${visit.doctorName}\nType: ${visit.visitType}\nDate: ${visit.date}\nTime: ${visit.time}\nState: ${visit.state}\nReason: ${visit.reason || 'N/A'}`)}
+                      >
+                        Manage Visit
+                      </button>
                     </td>
                   </tr>
                 );
