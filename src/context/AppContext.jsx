@@ -307,9 +307,16 @@ export const AppProvider = ({ children }) => {
     setVisits(prev => [newVisit, ...prev]);
   };
 
-  const [stockLogs, setStockLogs] = useState([
-    { id: 'log-1', itemName: 'Feline Rabies Vaccine', change: '+45 units', user: 'Khaled ElGendy', date: '2026-07-24' }
-  ]);
+  const [stockLogs, setStockLogs] = useState(() => {
+    const saved = localStorage.getItem('petution_stocklogs');
+    return saved ? JSON.parse(saved) : [
+      { id: 'log-1', itemName: 'Feline Rabies Vaccine', change: '+45 units', user: 'Khaled ElGendy', date: '2026-07-24' }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('petution_stocklogs', JSON.stringify(stockLogs));
+  }, [stockLogs]);
 
   const addProduct = (prodData) => {
     const newProd = {
@@ -346,6 +353,10 @@ export const AppProvider = ({ children }) => {
   };
 
   const importFullBackup = (backupData) => {
+    if (!backupData || typeof backupData !== 'object') {
+      alert('Invalid backup file format.');
+      return;
+    }
     if (backupData.clients) setClients(backupData.clients);
     if (backupData.pets) setPets(backupData.pets);
     if (backupData.visits) setVisits(backupData.visits);
@@ -356,51 +367,73 @@ export const AppProvider = ({ children }) => {
   };
 
   const importClientsData = (newClients) => {
-    const formatted = newClients.map((c, idx) => ({
-      id: c.id || `cli-imp-${Date.now()}-${idx}`,
-      name: c.name || c.PetOwnerName || 'Imported Client',
-      source: c.source || 'Imported',
-      governorate: c.governorate || 'Cairo',
-      district: c.district || '',
-      street: c.street || '',
-      phones: c.phones ? (typeof c.phones === 'string' ? JSON.parse(c.phones) : c.phones) : [{ phone: c.phone || c.PrimaryPhone || '', label: 'Primary', isPrimary: true }],
-      tags: c.tags ? (typeof c.tags === 'string' ? JSON.parse(c.tags) : c.tags) : ['Imported'],
-      pets: [],
-      createdAt: c.createdAt || new Date().toISOString().split('T')[0]
-    }));
+    if (!Array.isArray(newClients) || newClients.length === 0) {
+      alert('No valid client data found in file.');
+      return;
+    }
+    const formatted = newClients.map((c, idx) => {
+      let phones;
+      try {
+        phones = c.phones ? (typeof c.phones === 'string' ? JSON.parse(c.phones) : c.phones) : [{ phone: c.phone || c.PrimaryPhone || '', label: 'Primary', isPrimary: true }];
+      } catch { phones = [{ phone: c.phone || c.PrimaryPhone || '', label: 'Primary', isPrimary: true }]; }
+      let tags;
+      try {
+        tags = c.tags ? (typeof c.tags === 'string' ? JSON.parse(c.tags) : c.tags) : ['Imported'];
+      } catch { tags = ['Imported']; }
+      return {
+        id: c.id || `cli-imp-${Date.now()}-${idx}`,
+        name: c.name || c.ClientName || c.PetOwnerName || 'Imported Client',
+        source: c.source || c.Source || 'Imported',
+        governorate: c.governorate || c.Governorate || 'Cairo',
+        district: c.district || c.District || '',
+        street: c.street || c.Street || '',
+        phones,
+        tags,
+        pets: [],
+        createdAt: c.createdAt || c.CreatedDate || new Date().toISOString().split('T')[0]
+      };
+    });
     setClients(prev => [...formatted, ...prev]);
     alert(`Successfully imported ${formatted.length} clients!`);
   };
 
   const importPetsData = (newPets) => {
+    if (!Array.isArray(newPets) || newPets.length === 0) {
+      alert('No valid pet data found in file.');
+      return;
+    }
     const formatted = newPets.map((p, idx) => ({
       id: p.id || `pet-imp-${Date.now()}-${idx}`,
       name: p.name || p.PetName || 'Imported Pet',
-      ageValue: Number(p.ageValue) || 1,
+      ageValue: Number(p.ageValue || p.Age) || 1,
       ageUnit: p.ageUnit || 'years',
-      species: p.species || p.Type || 'cat',
-      gender: p.gender || 'male',
-      vaccinated: String(p.vaccinated).toLowerCase() === 'true',
+      species: (p.species || p.Species || p.Type || 'cat').toLowerCase(),
+      gender: p.gender || p.Gender || 'male',
+      vaccinated: String(p.vaccinated || p.Vaccinated || 'false').toLowerCase() === 'true' || String(p.vaccinated || p.Vaccinated || '') === 'Yes',
       deworming: String(p.deworming).toLowerCase() === 'true',
       antiflea: String(p.antiflea).toLowerCase() === 'true',
       castrated: String(p.castrated).toLowerCase() === 'true',
-      breed: p.breed || '',
+      breed: p.breed || p.Breed || '',
       temperament: p.temperament || 'Calm',
       nutrition: ['Dry food'],
       owners: [],
-      createdAt: p.createdAt || new Date().toISOString().split('T')[0]
+      createdAt: p.createdAt || p.CreatedDate || new Date().toISOString().split('T')[0]
     }));
     setPets(prev => [...formatted, ...prev]);
     alert(`Successfully imported ${formatted.length} pets!`);
   };
 
   const importProductsData = (newProds) => {
+    if (!Array.isArray(newProds) || newProds.length === 0) {
+      alert('No valid product data found in file.');
+      return;
+    }
     const formatted = newProds.map((p, idx) => ({
       id: p.id || `prod-imp-${Date.now()}-${idx}`,
       name: p.name || p.ItemName || 'Imported Product',
-      type: p.type || 'product',
-      unitType: p.unitType || 'Piece',
-      pricingUnit: p.pricingUnit || 'Piece',
+      type: p.type || p.Type || 'product',
+      unitType: p.unitType || p.UnitType || 'Piece',
+      pricingUnit: p.pricingUnit || p.PricingUnit || 'Piece',
       pricePerUnit: Number(p.pricePerUnit || p.PricePerUnit) || 100,
       costPerUnit: Number(p.costPerUnit || p.CostPerUnit) || 50,
       revenuePerUnit: (Number(p.pricePerUnit || p.PricePerUnit) || 100) - (Number(p.costPerUnit || p.CostPerUnit) || 50),
@@ -410,6 +443,27 @@ export const AppProvider = ({ children }) => {
     }));
     setProducts(prev => [...formatted, ...prev]);
     alert(`Successfully imported ${formatted.length} products/services!`);
+  };
+
+  const importInvoicesData = (newInvs) => {
+    if (!Array.isArray(newInvs) || newInvs.length === 0) {
+      alert('No valid invoice data found in file.');
+      return;
+    }
+    const formatted = newInvs.map((inv, idx) => ({
+      id: inv.id || `inv-imp-${Date.now()}-${idx}`,
+      petId: inv.petId || '',
+      visitId: inv.visitId || '',
+      status: inv.status || inv.Status || 'pending',
+      discountType: inv.discountType || 'none',
+      discountValue: Number(inv.discountValue) || 0,
+      taxPercentage: Number(inv.taxPercentage || inv.TaxPercentage) || 14,
+      subtotal: Number(inv.subtotal || inv.Subtotal) || 0,
+      totalAmount: Number(inv.totalAmount || inv.TotalAmount || inv.Amount) || 0,
+      createdAt: inv.createdAt || inv.CreatedDate || new Date().toISOString().split('T')[0]
+    }));
+    setInvoices(prev => [...formatted, ...prev]);
+    alert(`Successfully imported ${formatted.length} invoices!`);
   };
 
   const [invitations, setInvitations] = useState(() => {
@@ -486,6 +540,7 @@ export const AppProvider = ({ children }) => {
         invoices,
         addInvoice,
         importFullBackup,
+        importInvoicesData,
         team,
         setTeam,
         invitations,
