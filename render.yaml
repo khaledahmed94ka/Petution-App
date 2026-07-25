@@ -2,7 +2,7 @@ services:
   - type: web
     name: petution-app
     env: static
-    buildCommand: npx vite build
+    buildCommand: node ./node_modules/vite/bin/vite.js build
     staticPublishPath: ./dist
     envVars:
       - key: NODE_VERSION
