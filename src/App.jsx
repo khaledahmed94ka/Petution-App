@@ -12,7 +12,7 @@ import { InvoicesView } from './views/InvoicesView';
 import { ProductsView } from './views/ProductsView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { TeamView } from './views/TeamView';
-import { BillingView } from './views/BillingView';
+import { BillingView } from './views/BillingView'; // Deferred for later
 import { SettingsView } from './views/SettingsView';
 import { RegisterClinicView } from './views/RegisterClinicView';
 
@@ -45,7 +45,7 @@ const MainApp = () => {
       case 'analytics': return <AnalyticsView />;
       case 'chats': return <div className="page-wrapper"><div className="card"><h3>WhatsApp Messaging Hub</h3><p className="text-muted margin-top-xs">Integrated clinic chat system ready for WhatsApp API configuration.</p></div></div>;
       case 'team': return <TeamView />;
-      case 'billing': return <BillingView />;
+      case 'billing': return <div className="page-wrapper"><div className="card"><h3>Billing & Subscription</h3><p className="text-muted margin-top-xs">Subscription and billing management coming soon.</p></div></div>;
       case 'settings': return <SettingsView />;
       case 'help': return <div className="page-wrapper"><div className="card"><h3>Support & Help Center</h3><p className="text-muted margin-top-xs">Search documentation or contact Petution technical support team.</p></div></div>;
       default: return <DashboardView />;

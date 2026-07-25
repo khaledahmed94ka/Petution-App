@@ -46,7 +46,6 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
 
   const secondaryNav = [
     { id: 'team', label: 'Team', icon: UserCheck },
-    { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'help', label: 'Get Help', icon: HelpCircle }
   ];
