@@ -125,7 +125,16 @@ The app will be running at `http://localhost:3000`
 npm run build
 ```
 
-### Deploy to GitHub Pages
+### Deploy Options
+
+#### Option A: Render.com (Recommended for Production)
+
+1. Go to [dashboard.render.com](https://dashboard.render.com/)
+2. Click **New +** → **Blueprints**
+3. Select your repository `khaledahmed94ka/Petution-App`
+4. Render will automatically load `render.yaml` and launch your site!
+
+#### Option B: GitHub Pages
 
 ```bash
 npm run deploy
