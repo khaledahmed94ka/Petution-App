@@ -165,6 +165,15 @@ const initialTeam = [
   }
 ];
 
+const initialUser = {
+  id: 'usr-1',
+  name: 'Khaled ElGendy',
+  email: 'khaledahmed94.ka@gmail.com',
+  role: 'Owner',
+  provider: 'email',
+  isAuthenticated: true
+};
+
 const initialSettings = {
   orgName: 'Petution',
   slug: 'petution',
@@ -175,6 +184,11 @@ const initialSettings = {
 
 export const AppProvider = ({ children }) => {
   // Workspaces list
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('petution_user');
+    return saved ? JSON.parse(saved) : initialUser;
+  });
+
   const [workspaces, setWorkspaces] = useState(() => {
     const saved = localStorage.getItem('petution_workspaces');
     return saved ? JSON.parse(saved) : [
@@ -246,6 +260,10 @@ export const AppProvider = ({ children }) => {
   const [activeModalItem, setActiveModalItem] = useState(null);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('petution_user', JSON.stringify(user));
+  }, [user]);
 
   useEffect(() => {
     localStorage.setItem('petution_workspaces', JSON.stringify(workspaces));
@@ -590,9 +608,55 @@ export const AppProvider = ({ children }) => {
     setInvitations(prev => prev.filter(i => i.id !== invId));
   };
 
+  const loginWithEmail = (email, password) => {
+    const loggedUser = {
+      id: `usr-${Date.now()}`,
+      name: email.split('@')[0].replace(/[\._]/g, ' '),
+      email,
+      role: 'Owner',
+      provider: 'email',
+      isAuthenticated: true
+    };
+    setUser(loggedUser);
+  };
+
+  const loginWithProvider = (providerName) => {
+    const loggedUser = {
+      id: `usr-${Date.now()}`,
+      name: providerName === 'google' ? 'Dr. Khaled ElGendy (Google)' : 'Dr. Khaled ElGendy (Apple)',
+      email: providerName === 'google' ? 'khaledahmed94.ka@gmail.com' : 'khaled.elgendy@icloud.com',
+      role: 'Owner',
+      provider: providerName,
+      isAuthenticated: true
+    };
+    setUser(loggedUser);
+  };
+
+  const signup = (name, email, password, clinicName) => {
+    const newUser = {
+      id: `usr-${Date.now()}`,
+      name,
+      email,
+      role: 'Owner',
+      provider: 'email',
+      isAuthenticated: true
+    };
+    setUser(newUser);
+    registerClinic({ clinicName, ownerName: name, email, phone: '' });
+  };
+
+  const logout = () => {
+    setUser(prev => ({ ...prev, isAuthenticated: false }));
+  };
+
   return (
     <AppContext.Provider
       value={{
+        user,
+        loginWithEmail,
+        loginWithProvider,
+        signup,
+        logout,
         workspaces,
         activeWorkspaceId,
         registerClinic,

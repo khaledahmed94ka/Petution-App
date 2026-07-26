@@ -20,6 +20,7 @@ import { useApp } from '../context/AppContext';
 
 export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen, onCloseMobile }) => {
   const { 
+    user,
     settings, 
     workspaces, 
     activeWorkspaceId, 
@@ -155,10 +156,12 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
         className="user-profile-footer clickable"
         onClick={() => setActiveDrawer('profile')}
       >
-        <div className="avatar-circle">KE</div>
+        <div className="avatar-circle">
+          {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'KE'}
+        </div>
         <div className="user-details">
-          <span className="user-name">Khaled ElGendy</span>
-          <span className="user-email">khaledahmed94.ka@gmail.com</span>
+          <span className="user-name">{user?.name || 'Khaled ElGendy'}</span>
+          <span className="user-email">{user?.email || 'khaledahmed94.ka@gmail.com'}</span>
         </div>
       </div>
 

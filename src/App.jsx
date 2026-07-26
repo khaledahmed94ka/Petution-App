@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 
+import { LoginView } from './views/LoginView';
 import { DashboardView } from './views/DashboardView';
 import { ClientsView } from './views/ClientsView';
 import { PetsView } from './views/PetsView';
@@ -25,12 +26,16 @@ import { AddExpenseDrawer } from './components/drawers/AddExpenseDrawer';
 import { AddItemDrawer } from './components/drawers/AddItemDrawer';
 import { ImportModalDrawer } from './components/drawers/ImportModalDrawer';
 import { InviteMemberDrawer } from './components/drawers/InviteMemberDrawer';
-import { X } from 'lucide-react';
+import { X, LogOut, ShieldCheck } from 'lucide-react';
 
 const MainApp = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { activeTab, setActiveTab, activeDrawer, setActiveDrawer } = useApp();
+  const { user, logout, activeTab, setActiveTab, activeDrawer, setActiveDrawer } = useApp();
+
+  if (!user?.isAuthenticated) {
+    return <LoginView />;
+  }
 
   if (isRegistering) {
     return <RegisterClinicView onComplete={() => setIsRegistering(false)} />;
@@ -96,7 +101,7 @@ const MainApp = () => {
             <div className="drawer-header">
               <div>
                 <h3>User Account</h3>
-                <p>Manage your account credentials and role settings.</p>
+                <p>Manage your login credentials, provider, and role settings.</p>
               </div>
               <button className="icon-btn" onClick={() => setActiveDrawer(null)}>
                 <X size={18} />
@@ -105,25 +110,44 @@ const MainApp = () => {
             <div className="drawer-body">
               <div className="form-group">
                 <label>Full Name</label>
-                <input type="text" className="form-control" defaultValue="Khaled ElGendy" readOnly />
+                <input type="text" className="form-control font-semibold" value={user?.name || 'Khaled ElGendy'} readOnly />
               </div>
               <div className="form-group">
                 <label>Email Address</label>
-                <input type="email" className="form-control" defaultValue="khaledahmed94.ka@gmail.com" readOnly />
+                <input type="email" className="form-control" value={user?.email || 'khaledahmed94.ka@gmail.com'} readOnly />
               </div>
-              <div className="form-group">
-                <label>Workspace Role</label>
-                <input type="text" className="form-control" defaultValue="Owner" readOnly />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Workspace Role</label>
+                  <input type="text" className="form-control" value={user?.role || 'Owner'} readOnly />
+                </div>
+                <div className="form-group">
+                  <label>Authentication Method</label>
+                  <div className="form-control flex items-center gap-xs font-semibold text-xs text-teal">
+                    <ShieldCheck size={14} /> {user?.provider ? user.provider.toUpperCase() : 'EMAIL'}
+                  </div>
+                </div>
               </div>
-              <div className="margin-top-lg border-top pt-md">
+
+              <div className="margin-top-lg border-top pt-md flex flex-col gap-sm">
                 <button 
-                  className="btn-secondary w-full text-red"
+                  className="btn-secondary w-full"
                   onClick={() => {
                     setActiveDrawer(null);
                     setIsRegistering(true);
                   }}
                 >
                   Switch / Register Clinic
+                </button>
+                <button 
+                  className="btn-primary w-full bg-rose text-white"
+                  style={{ background: '#e11d48', borderColor: '#e11d48' }}
+                  onClick={() => {
+                    setActiveDrawer(null);
+                    logout();
+                  }}
+                >
+                  <LogOut size={16} /> Sign Out of Petution
                 </button>
               </div>
             </div>
