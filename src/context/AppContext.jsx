@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiClient } from '../services/apiClient';
 
 const AppContext = createContext();
 
@@ -552,6 +553,26 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const migrateLocalStorageToCloud = async () => {
+    try {
+      const legacyData = {
+        clients: JSON.parse(localStorage.getItem('petution_clients') || '[]'),
+        pets: JSON.parse(localStorage.getItem('petution_pets') || '[]'),
+        visits: JSON.parse(localStorage.getItem('petution_visits') || '[]'),
+        products: JSON.parse(localStorage.getItem('petution_products') || '[]'),
+        invoices: JSON.parse(localStorage.getItem('petution_invoices') || '[]'),
+        expenses: JSON.parse(localStorage.getItem('petution_expenses') || '[]'),
+        vaccines: JSON.parse(localStorage.getItem('petution_vaccines') || '[]'),
+        soapNotes: JSON.parse(localStorage.getItem('petution_soap_notes') || '[]')
+      };
+      
+      const res = await apiClient.migrateLocalStorage({ legacyData });
+      console.log('[AppContext Sync] Local data migrated to backend database:', res);
+    } catch (err) {
+      console.warn('[AppContext Sync] Auto-migration offline fallback:', err.message);
+    }
+  };
+
   const importFullBackup = (backupData) => {
     if (!backupData || typeof backupData !== 'object') {
       alert('Invalid backup file format.');
@@ -812,6 +833,7 @@ export const AppProvider = ({ children }) => {
         deleteVaccine,
         soapNotes,
         saveSOAPNote,
+        migrateLocalStorageToCloud,
         team,
         setTeam,
         invitations,
