@@ -346,6 +346,27 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const deleteWorkspace = (wsId) => {
+    if (workspaces.length <= 1) {
+      alert('Cannot delete the only remaining workspace. You must have at least one active clinic.');
+      return;
+    }
+
+    const targetWs = workspaces.find(w => w.id === wsId);
+    const targetName = targetWs ? targetWs.name : 'workspace';
+
+    const updatedWorkspaces = workspaces.filter(w => w.id !== wsId);
+    setWorkspaces(updatedWorkspaces);
+
+    if (activeWorkspaceId === wsId) {
+      const nextWs = updatedWorkspaces[0];
+      setActiveWorkspaceId(nextWs.id);
+      setSettingsState(prev => ({ ...prev, orgName: nextWs.name, slug: nextWs.slug }));
+    }
+
+    alert(`Clinic workspace "${targetName}" has been deleted.`);
+  };
+
 
   const addClient = (clientData) => {
     const newClient = {
@@ -661,6 +682,7 @@ export const AppProvider = ({ children }) => {
         activeWorkspaceId,
         registerClinic,
         switchWorkspace,
+        deleteWorkspace,
         clients,
         addClient,
         importClientsData,

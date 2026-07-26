@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Download, Upload, Database, ShieldCheck } from 'lucide-react';
+import { Camera, Download, Upload, Database, ShieldCheck, Trash2, AlertTriangle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportSystemBackupJSON } from '../utils/dataExportImport';
 
 export const SettingsView = () => {
-  const { settings, setSettings, clients, pets, visits, products, invoices, importFullBackup } = useApp();
+  const { settings, setSettings, clients, pets, visits, products, invoices, importFullBackup, deleteWorkspace, activeWorkspaceId } = useApp();
   const [formData, setFormData] = useState({ ...settings });
   const [activeTab, setActiveTab] = useState('Organization');
 
@@ -156,6 +156,30 @@ export const SettingsView = () => {
               </button>
             </div>
           </form>
+
+          {/* Danger Zone: Delete Clinic Workspace */}
+          <div className="danger-zone-card margin-top-lg">
+            <h4 className="font-semibold text-rose flex items-center gap-xs">
+              <AlertTriangle size={18} /> Danger Zone: Delete Clinic Workspace
+            </h4>
+            <p className="text-xs text-muted margin-top-xs">
+              Permanently remove this active clinic workspace ("{formData.orgName}"). This action cannot be undone.
+            </p>
+            <div className="margin-top-sm">
+              <button 
+                type="button" 
+                className="btn-secondary text-rose border-rose"
+                style={{ borderColor: '#e11d48', color: '#e11d48' }}
+                onClick={() => {
+                  if (confirm(`Are you sure you want to PERMANENTLY DELETE the clinic workspace "${formData.orgName}"?`)) {
+                    deleteWorkspace(activeWorkspaceId);
+                  }
+                }}
+              >
+                <Trash2 size={16} /> Delete Clinic Workspace
+              </button>
+            </div>
+          </div>
         </div>
       ) : activeTab === 'Data Backup & Migration' ? (
         <div className="card settings-card">

@@ -14,7 +14,8 @@ import {
   HelpCircle,
   ChevronDown,
   Check,
-  PlusCircle
+  PlusCircle,
+  Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -25,6 +26,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
     workspaces, 
     activeWorkspaceId, 
     switchWorkspace, 
+    deleteWorkspace,
     showWorkspaceMenu, 
     setShowWorkspaceMenu,
     setActiveDrawer
@@ -65,13 +67,13 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
           onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
         >
           <div className="workspace-logo-circle">
-            <span>{settings.orgName.charAt(0)}</span>
+            <span>{settings.orgName ? settings.orgName.charAt(0) : 'P'}</span>
           </div>
-          <div className="workspace-info">
-            <span className="workspace-title">{settings.orgName}</span>
-            <span className="workspace-sub">Clinic workspace</span>
+          <div className="workspace-title-info">
+            <span className="workspace-name">{settings.orgName || 'Petution Clinic'}</span>
+            <span className="workspace-slug">{settings.slug || 'petution'}</span>
           </div>
-          <ChevronDown size={14} className={`text-light transition-transform ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
+          <ChevronDown size={14} className="margin-left-auto text-muted" />
         </div>
 
         {/* Workspace Dropdown Popover */}
@@ -92,7 +94,21 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
                   <span className="ws-item-name">{ws.name}</span>
                   <span className="ws-item-plan">{ws.plan || 'Active Workspace'}</span>
                 </div>
-                {ws.id === activeWorkspaceId && <Check size={14} className="text-teal" />}
+                {ws.id === activeWorkspaceId && <Check size={14} className="text-teal margin-right-xs" />}
+                {workspaces.length > 1 && (
+                  <button 
+                    className="icon-btn text-rose" 
+                    title="Delete Clinic Workspace"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Permanently delete clinic workspace "${ws.name}"?`)) {
+                        deleteWorkspace(ws.id);
+                      }
+                    }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </div>
             ))}
 
