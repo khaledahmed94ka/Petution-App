@@ -9,7 +9,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { apiRouter } from './routes/api.js';
 import { shopifyRouter } from './routes/shopify.js';
-import { idexxRouter } from './routes/idexx.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,9 +22,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // API & Webhook Routes
 app.use('/api/v1', apiRouter);
-app.use('/api/v1/integrations/idexx', idexxRouter);
 app.use('/api/webhooks/shopify', shopifyRouter);
-app.use('/api/webhooks/idexx', idexxRouter);
 
 // Serve static compiled frontend assets in production
 const distPath = path.join(__dirname, '../dist');
@@ -43,6 +40,5 @@ app.listen(PORT, () => {
   console.log(`📍 PORT: ${PORT}`);
   console.log(`🔗 API Base: http://localhost:${PORT}/api/v1`);
   console.log(`🛍️ Shopify Webhooks: http://localhost:${PORT}/api/webhooks/shopify`);
-  console.log(`🧪 IDEXX Adapter: http://localhost:${PORT}/api/v1/integrations/idexx`);
   console.log(`=======================================================`);
 });

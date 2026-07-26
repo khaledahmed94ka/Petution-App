@@ -266,21 +266,3 @@ CREATE TABLE IF NOT EXISTS shopify_sync_logs (
     status VARCHAR(50) NOT NULL DEFAULT 'success',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
--- -----------------------------------------------------------------------------
--- 13. IDEXX DIAGNOSTIC LAB ORDERS & RESULTS
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS idexx_lab_orders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
-    pet_id UUID REFERENCES pets(id) ON DELETE CASCADE,
-    requisition_id VARCHAR(100) UNIQUE NOT NULL,
-    test_code VARCHAR(100) NOT NULL,
-    test_name VARCHAR(255) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'submitted', -- submitted, processing, completed, error
-    results_payload JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_idexx_requisition ON idexx_lab_orders(requisition_id);
