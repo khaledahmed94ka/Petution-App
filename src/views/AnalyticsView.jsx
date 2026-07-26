@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 export const AnalyticsView = () => {
-  const { visits, clients, pets, invoices } = useApp();
+  const { visits, clients, pets, invoices, expenses = [] } = useApp();
   const [doctorFilter, setDoctorFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('Last 3 months');
 
@@ -33,10 +33,14 @@ export const AnalyticsView = () => {
   const filteredClients = clients.filter(c => isAfterStart(c.createdAt));
   const filteredPets = pets.filter(p => isAfterStart(p.createdAt));
   const filteredInvoices = invoices.filter(i => isAfterStart(i.createdAt));
+  const filteredExpenses = expenses.filter(e => isAfterStart(e.date));
 
   const totalPaidRevenue = filteredInvoices
     .filter(i => i.status === 'paid')
     .reduce((sum, i) => sum + i.totalAmount, 0);
+
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const netProfitEstimate = totalPaidRevenue - totalExpenses;
 
   const kpis = [
     { title: 'Net revenue', value: `${totalPaidRevenue} EGP`, sub: 'Collected payments after refunds' },
@@ -44,8 +48,8 @@ export const AnalyticsView = () => {
     { title: 'Completion rate', value: '0%', sub: 'Completed visits divided by total visits' },
     { title: 'New clients', value: filteredClients.length, sub: 'Clients created during this period' },
     { title: 'Total clients', value: clients.length, sub: 'Client base available at end of period' },
-    { title: 'Outstanding revenue', value: '0 EGP', sub: 'Invoice totals still unpaid' },
-    { title: 'Profit estimate', value: `${totalPaidRevenue} EGP`, sub: 'Net revenue minus known product costs' },
+    { title: 'Total Expenses', value: `${totalExpenses} EGP`, sub: 'Operational costs & supplier bills' },
+    { title: 'Profit estimate', value: `${netProfitEstimate} EGP`, sub: 'Net revenue minus operational expenses' },
     { title: 'Canceled visits', value: 0, sub: 'Visits canceled in the period' },
     { title: 'New pets', value: filteredPets.length, sub: 'Pets created during this period' },
     { title: 'Services sold', value: 0, sub: 'Total service units added to invoices' },

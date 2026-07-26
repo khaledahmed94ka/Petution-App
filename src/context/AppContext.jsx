@@ -41,8 +41,21 @@ const initialPets = [
     deworming: true,
     antiflea: true,
     castrated: true,
+    neuterDate: '2025-03-15',
     breed: 'Persian',
     temperament: 'Calm',
+    color: 'White',
+    bloodGroup: 'A',
+    cardNo: 'CRD-9982',
+    protocolNo: 'PRT-102',
+    microchipNumber: '985141002938471',
+    microchipDate: '2025-01-10',
+    microchipLocation: 'Left Scapular',
+    isAggressive: false,
+    isDeceased: false,
+    deathDate: '',
+    privateNotes: 'Sensitive skin. Prefers soft handling.',
+    tags: ['VIP', 'Indoor Only'],
     nutrition: ['Dry food', 'Soft food'],
     owners: ['cli-1'],
     createdAt: '2026-07-20'
@@ -58,12 +71,30 @@ const initialPets = [
     deworming: true,
     antiflea: false,
     castrated: false,
+    neuterDate: '',
     breed: 'Golden Retriever',
     temperament: 'Playful',
+    color: 'Golden',
+    bloodGroup: 'DEA 1.1+',
+    cardNo: 'CRD-4410',
+    protocolNo: 'PRT-108',
+    microchipNumber: '985141007728192',
+    microchipDate: '2024-06-20',
+    microchipLocation: 'Neck',
+    isAggressive: true,
+    isDeceased: false,
+    deathDate: '',
+    privateNotes: 'Caution: Barking at strange dogs.',
+    tags: ['High Energy', 'Guard Dog'],
     nutrition: ['Dry food'],
     owners: ['cli-2'],
     createdAt: '2026-07-22'
   }
+];
+
+const initialExpenses = [
+  { id: 'exp-1', title: 'Medical Supplies Wholesaler', vendor: 'El-Gomhouria Med', category: 'Supplies', amount: 4500, date: '2026-07-21', paymentMethod: 'Bank Transfer', notes: 'Monthly vaccine & syringe order' },
+  { id: 'exp-2', title: 'Clinic Electricity & Utilities', vendor: 'South Cairo Elec', category: 'Utilities', amount: 1200, date: '2026-07-23', paymentMethod: 'Cash', notes: 'July utility bill' }
 ];
 
 const initialVisits = [
@@ -181,6 +212,11 @@ export const AppProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : initialInvoices;
   });
 
+  const [expenses, setExpenses] = useState(() => {
+    const saved = localStorage.getItem('petution_expenses');
+    return saved ? JSON.parse(saved) : initialExpenses;
+  });
+
   const [team, setTeam] = useState(() => {
     const saved = localStorage.getItem('petution_team');
     return saved ? JSON.parse(saved) : initialTeam;
@@ -242,6 +278,10 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('petution_invoices', JSON.stringify(invoices));
   }, [invoices]);
+
+  useEffect(() => {
+    localStorage.setItem('petution_expenses', JSON.stringify(expenses));
+  }, [expenses]);
 
   useEffect(() => {
     localStorage.setItem('petution_notifications', JSON.stringify(notifications));
@@ -360,6 +400,19 @@ export const AppProvider = ({ children }) => {
     setInvoices(prev => [newInv, ...prev]);
   };
 
+  const addExpense = (expData) => {
+    const newExp = {
+      ...expData,
+      id: `exp-${Date.now()}`,
+      date: expData.date || new Date().toISOString().split('T')[0]
+    };
+    setExpenses(prev => [newExp, ...prev]);
+  };
+
+  const deleteExpense = (id) => {
+    setExpenses(prev => prev.filter(e => e.id !== id));
+  };
+
   const importFullBackup = (backupData) => {
     if (!backupData || typeof backupData !== 'object') {
       alert('Invalid backup file format.');
@@ -370,6 +423,7 @@ export const AppProvider = ({ children }) => {
     if (backupData.visits) setVisits(backupData.visits);
     if (backupData.products) setProducts(backupData.products);
     if (backupData.invoices) setInvoices(backupData.invoices);
+    if (backupData.expenses) setExpenses(backupData.expenses);
     if (backupData.settings) updateSettings(backupData.settings);
     alert('System backup restored successfully!');
   };
@@ -421,8 +475,21 @@ export const AppProvider = ({ children }) => {
       deworming: String(p.deworming).toLowerCase() === 'true',
       antiflea: String(p.antiflea).toLowerCase() === 'true',
       castrated: String(p.castrated).toLowerCase() === 'true',
+      neuterDate: p.neuterDate || '',
       breed: p.breed || p.Breed || '',
       temperament: p.temperament || 'Calm',
+      color: p.color || '',
+      bloodGroup: p.bloodGroup || 'Unspecified',
+      cardNo: p.cardNo || '',
+      protocolNo: p.protocolNo || '',
+      microchipNumber: p.microchipNumber || p.MicrochipNumber || '',
+      microchipDate: p.microchipDate || '',
+      microchipLocation: p.microchipLocation || '',
+      isAggressive: String(p.isAggressive).toLowerCase() === 'true',
+      isDeceased: String(p.isDeceased).toLowerCase() === 'true',
+      deathDate: p.deathDate || '',
+      privateNotes: p.privateNotes || '',
+      tags: Array.isArray(p.tags) ? p.tags : ['Imported'],
       nutrition: ['Dry food'],
       owners: [],
       createdAt: p.createdAt || p.CreatedDate || new Date().toISOString().split('T')[0]
@@ -549,6 +616,9 @@ export const AppProvider = ({ children }) => {
         addInvoice,
         importFullBackup,
         importInvoicesData,
+        expenses,
+        addExpense,
+        deleteExpense,
         team,
         setTeam,
         invitations,

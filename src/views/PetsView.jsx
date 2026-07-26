@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Download, Upload } from 'lucide-react';
+import { Search, Plus, Download, Upload, ShieldAlert, Cpu, HeartOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/dataExportImport';
 
@@ -11,7 +11,9 @@ export const PetsView = () => {
   const speciesOptions = ['All', 'Cat', 'Dog', 'Turtle', 'Bird', 'Other'];
 
   const filteredPets = pets.filter(pet => {
-    const matchesSearch = pet.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (pet.microchipNumber && pet.microchipNumber.includes(searchTerm)) ||
+                          (pet.cardNo && pet.cardNo.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesSpecies = selectedSpecies === 'All' || pet.species.toLowerCase() === selectedSpecies.toLowerCase();
     return matchesSearch && matchesSpecies;
   });
@@ -22,9 +24,23 @@ export const PetsView = () => {
       return {
         PetName: p.name,
         Species: p.species,
-        Breed: p.breed,
+        Breed: p.breed || '',
+        Color: p.color || '',
         Age: `${p.ageValue} ${p.ageUnit}`,
+        BloodGroup: p.bloodGroup || 'Unspecified',
+        MicrochipNumber: p.microchipNumber || '',
+        MicrochipDate: p.microchipDate || '',
+        MicrochipLocation: p.microchipLocation || '',
+        CardNo: p.cardNo || '',
+        ProtocolNo: p.protocolNo || '',
         Vaccinated: p.vaccinated ? 'Yes' : 'No',
+        Deworming: p.deworming ? 'Yes' : 'No',
+        Antiflea: p.antiflea ? 'Yes' : 'No',
+        Neutered: p.castrated ? 'Yes' : 'No',
+        NeuteredDate: p.neuterDate || '',
+        Aggressive: p.isAggressive ? 'Yes' : 'No',
+        Deceased: p.isDeceased ? 'Yes' : 'No',
+        DeathDate: p.deathDate || '',
         OwnerName: owner ? owner.name : 'Unassigned',
         CreatedDate: p.createdAt
       };
@@ -38,7 +54,7 @@ export const PetsView = () => {
       <div className="page-header">
         <div>
           <h2>Pets</h2>
-          <p className="text-muted">Manage pets and owner assignments across the clinic.</p>
+          <p className="text-muted">Manage patient profiles, microchip records, and health cards.</p>
         </div>
         <div className="flex gap-sm">
           <button className="btn-secondary" onClick={handleExport} title="Export Pets CSV">
@@ -54,49 +70,53 @@ export const PetsView = () => {
         </div>
       </div>
 
-      {/* Summary Metric Cards */}
-      <div className="metrics-grid-4">
+      {/* Metrics Cards */}
+      <div className="metrics-grid-4 margin-bottom-lg">
         <div className="card">
-          <span className="card-title">Total Pets</span>
+          <span className="card-title">Total Pets Registered</span>
           <div className="card-value">{pets.length}</div>
-          <span className="text-muted text-xs">Current filtered pets</span>
+          <span className="text-muted text-xs">Patients in database</span>
         </div>
         <div className="card">
-          <span className="card-title">New Pets This Month</span>
-          <div className="card-value">{pets.length}</div>
-          <span className="text-muted text-xs">Created during this month</span>
+          <span className="card-title">Microchipped Patients</span>
+          <div className="card-value">{pets.filter(p => p.microchipNumber).length}</div>
+          <span className="badge badge-teal">
+            {pets.length ? Math.round((pets.filter(p => p.microchipNumber).length / pets.length) * 100) : 0}% chipped
+          </span>
         </div>
         <div className="card">
-          <span className="card-title">New Pets Today</span>
-          <div className="card-value">0</div>
-          <span className="text-muted text-xs">Created today</span>
+          <span className="card-title">High Risk / Aggressive</span>
+          <div className="card-value text-rose">{pets.filter(p => p.isAggressive).length}</div>
+          <span className="text-muted text-xs">Caution flag required</span>
+        </div>
+        <div className="card">
+          <span className="card-title">Neutered / Spayed</span>
+          <div className="card-value">{pets.filter(p => p.castrated).length}</div>
+          <span className="text-muted text-xs">Sterilization complete</span>
         </div>
       </div>
 
-      {/* Table & Controls */}
+      {/* Data Table Container */}
       <div className="table-container">
         <div className="table-controls-stack">
-          <div className="controls-row">
-            <div className="search-input-wrapper">
-              <Search size={16} className="search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search by pet name"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+          <div className="search-input-wrapper">
+            <Search size={16} className="search-icon" />
+            <input 
+              type="text" 
+              placeholder="Search by name, microchip #, or card #"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
 
-          {/* Species Chips */}
-          <div className="chip-group margin-top-sm">
-            {speciesOptions.map(species => (
+          <div className="flex gap-xs" style={{ overflowX: 'auto', paddingBottom: '4px' }}>
+            {speciesOptions.map(spec => (
               <button
-                key={species}
-                className={`chip ${selectedSpecies === species ? 'active' : ''}`}
-                onClick={() => setSelectedSpecies(species)}
+                key={spec}
+                className={`btn-chip ${selectedSpecies === spec ? 'active' : ''}`}
+                onClick={() => setSelectedSpecies(spec)}
               >
-                {species}
+                {spec}
               </button>
             ))}
           </div>
@@ -105,17 +125,18 @@ export const PetsView = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Name</th>
+              <th>Pet Name</th>
               <th>Owner Name</th>
-              <th>Type (Species)</th>
-              <th>Created</th>
+              <th>Species & Breed</th>
+              <th>Microchip / Identification</th>
+              <th>Health & Flags</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredPets.length === 0 ? (
               <tr>
-                <td colSpan="5" className="empty-state">
+                <td colSpan="6" className="empty-state">
                   No pets found. Try changing filters or search.
                 </td>
               </tr>
@@ -123,20 +144,52 @@ export const PetsView = () => {
               filteredPets.map(pet => {
                 const owner = clients.find(c => pet.owners?.includes(c.id));
                 return (
-                  <tr key={pet.id}>
-                    <td className="font-semibold">{pet.name}</td>
+                  <tr key={pet.id} className={pet.isDeceased ? 'row-deceased' : ''}>
+                    <td>
+                      <div className="flex flex-col">
+                        <span className="font-semibold flex items-center gap-xs">
+                          {pet.name}
+                          {pet.isDeceased && <span className="badge badge-rose text-xs"><HeartOff size={12} /> Deceased</span>}
+                        </span>
+                        <span className="text-xs text-muted">{pet.ageValue} {pet.ageUnit} • {pet.gender}</span>
+                      </div>
+                    </td>
                     <td>{owner ? owner.name : <span className="text-muted">Unassigned</span>}</td>
                     <td>
                       <span className="badge badge-teal">{pet.species.toUpperCase()}</span>
                       {pet.breed && <span className="text-muted text-xs margin-left-xs">({pet.breed})</span>}
                     </td>
-                    <td className="text-muted">{pet.createdAt}</td>
+                    <td>
+                      {pet.microchipNumber ? (
+                        <div className="flex items-center gap-xs text-xs font-mono">
+                          <Cpu size={14} className="text-teal" />
+                          <span>{pet.microchipNumber}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted text-xs">No microchip</span>
+                      )}
+                      {pet.cardNo && <div className="text-xs text-muted">Card: {pet.cardNo}</div>}
+                    </td>
+                    <td>
+                      <div className="flex gap-xs flex-wrap">
+                        {pet.isAggressive && (
+                          <span className="badge badge-rose text-xs font-bold" title="High Risk - Handle with Caution">
+                            <ShieldAlert size={12} /> Aggressive
+                          </span>
+                        )}
+                        {pet.vaccinated && <span className="badge badge-gray text-xs">Vaccinated</span>}
+                        {pet.castrated && <span className="badge badge-gray text-xs">Neutered</span>}
+                        {pet.bloodGroup && pet.bloodGroup !== 'Unspecified' && (
+                          <span className="badge badge-teal text-xs">Blood: {pet.bloodGroup}</span>
+                        )}
+                      </div>
+                    </td>
                     <td>
                       <button 
                         className="btn-secondary text-xs"
-                        onClick={() => alert(`Pet Health Card: ${pet.name}\nSpecies: ${pet.species.toUpperCase()}\nBreed: ${pet.breed || 'N/A'}\nAge: ${pet.ageValue} ${pet.ageUnit}\nVaccinated: ${pet.vaccinated ? 'Yes' : 'No'}\nDeworming: ${pet.deworming ? 'Yes' : 'No'}\nAntiflea: ${pet.antiflea ? 'Yes' : 'No'}`)}
+                        onClick={() => alert(`🏥 PET MEDICAL HEALTH CARD\n-------------------------\nName: ${pet.name}\nOwner: ${owner ? owner.name : 'Unassigned'}\nSpecies: ${pet.species.toUpperCase()} (${pet.breed || 'Mixed'})\nAge: ${pet.ageValue} ${pet.ageUnit} | Gender: ${pet.gender}\nBlood Group: ${pet.bloodGroup || 'Unspecified'}\nMicrochip: ${pet.microchipNumber || 'None'} (${pet.microchipLocation || 'N/A'})\nCard #: ${pet.cardNo || 'N/A'} | Protocol #: ${pet.protocolNo || 'N/A'}\nNeutered: ${pet.castrated ? 'Yes' : 'No'} ${pet.neuterDate ? `(${pet.neuterDate})` : ''}\nVaccinated: ${pet.vaccinated ? 'Yes' : 'No'} | Dewormed: ${pet.deworming ? 'Yes' : 'No'}\nBehavior: ${pet.temperament || 'Calm'} ${pet.isAggressive ? '⚠️ AGGRESSIVE RISK' : ''}\nStatus: ${pet.isDeceased ? 'DECEASED' : 'Active'}\nPrivate Notes: ${pet.privateNotes || 'None'}`)}
                       >
-                        View Health Card
+                        Health Card
                       </button>
                     </td>
                   </tr>
@@ -149,6 +202,10 @@ export const PetsView = () => {
 
       <style>{`
         .margin-left-xs { margin-left: 6px; }
+        .text-rose { color: #e11d48; }
+        .badge-rose { background: #ffe4e6; color: #e11d48; border: 1px solid #fecdd3; }
+        .row-deceased { opacity: 0.65; background: #fafafa; }
+        .font-mono { font-family: monospace; }
       `}</style>
     </div>
   );

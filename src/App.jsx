@@ -9,6 +9,7 @@ import { ClientsView } from './views/ClientsView';
 import { PetsView } from './views/PetsView';
 import { VisitsView } from './views/VisitsView';
 import { InvoicesView } from './views/InvoicesView';
+import { ExpensesView } from './views/ExpensesView';
 import { ProductsView } from './views/ProductsView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { TeamView } from './views/TeamView';
@@ -20,6 +21,7 @@ import { AddClientDrawer } from './components/drawers/AddClientDrawer';
 import { AddPetDrawer } from './components/drawers/AddPetDrawer';
 import { AddVisitDrawer } from './components/drawers/AddVisitDrawer';
 import { AddInvoiceDrawer } from './components/drawers/AddInvoiceDrawer';
+import { AddExpenseDrawer } from './components/drawers/AddExpenseDrawer';
 import { AddItemDrawer } from './components/drawers/AddItemDrawer';
 import { ImportModalDrawer } from './components/drawers/ImportModalDrawer';
 import { InviteMemberDrawer } from './components/drawers/InviteMemberDrawer';
@@ -41,6 +43,7 @@ const MainApp = () => {
       case 'pets': return <PetsView />;
       case 'visits': return <VisitsView />;
       case 'invoices': return <InvoicesView />;
+      case 'expenses': return <ExpensesView />;
       case 'products': return <ProductsView />;
       case 'analytics': return <AnalyticsView />;
       case 'chats': return <div className="page-wrapper"><div className="card"><h3>WhatsApp Messaging Hub</h3><p className="text-muted margin-top-xs">Integrated clinic chat system ready for WhatsApp API configuration.</p></div></div>;
@@ -79,6 +82,7 @@ const MainApp = () => {
       {activeDrawer === 'addPet' && <AddPetDrawer />}
       {activeDrawer === 'addVisit' && <AddVisitDrawer />}
       {activeDrawer === 'addInvoice' && <AddInvoiceDrawer />}
+      {activeDrawer === 'addExpense' && <AddExpenseDrawer />}
       {activeDrawer === 'addItem' && <AddItemDrawer />}
       {activeDrawer === 'inviteMember' && <InviteMemberDrawer />}
       {activeDrawer === 'importClients' && <ImportModalDrawer targetType="clients" />}

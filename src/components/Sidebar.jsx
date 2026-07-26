@@ -4,6 +4,7 @@ import {
   Dog, 
   Calendar, 
   Receipt, 
+  DollarSign,
   Package, 
   BarChart3, 
   MessageSquare, 
@@ -39,6 +40,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
     { id: 'pets', label: 'Pets', icon: Dog },
     { id: 'visits', label: 'Visits', icon: Calendar },
     { id: 'invoices', label: 'Invoices', icon: Receipt },
+    { id: 'expenses', label: 'Expenses', icon: DollarSign },
     { id: 'products', label: 'Products & Services', icon: Package },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'chats', label: 'Chats', icon: MessageSquare }
