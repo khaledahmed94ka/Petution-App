@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Search, Plus, Download, Upload, ShieldAlert, Cpu, HeartOff } from 'lucide-react';
+import { Search, Plus, Download, Upload, ShieldAlert, Cpu, HeartOff, Syringe } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/dataExportImport';
 
 export const PetsView = () => {
-  const { pets, clients, setActiveDrawer } = useApp();
+  const { pets, clients, setActiveDrawer, setActiveModalItem } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecies, setSelectedSpecies] = useState('All');
 
@@ -185,12 +185,23 @@ export const PetsView = () => {
                       </div>
                     </td>
                     <td>
-                      <button 
-                        className="btn-secondary text-xs"
-                        onClick={() => alert(`🏥 PET MEDICAL HEALTH CARD\n-------------------------\nName: ${pet.name}\nOwner: ${owner ? owner.name : 'Unassigned'}\nSpecies: ${pet.species.toUpperCase()} (${pet.breed || 'Mixed'})\nAge: ${pet.ageValue} ${pet.ageUnit} | Gender: ${pet.gender}\nBlood Group: ${pet.bloodGroup || 'Unspecified'}\nMicrochip: ${pet.microchipNumber || 'None'} (${pet.microchipLocation || 'N/A'})\nCard #: ${pet.cardNo || 'N/A'} | Protocol #: ${pet.protocolNo || 'N/A'}\nNeutered: ${pet.castrated ? 'Yes' : 'No'} ${pet.neuterDate ? `(${pet.neuterDate})` : ''}\nVaccinated: ${pet.vaccinated ? 'Yes' : 'No'} | Dewormed: ${pet.deworming ? 'Yes' : 'No'}\nBehavior: ${pet.temperament || 'Calm'} ${pet.isAggressive ? '⚠️ AGGRESSIVE RISK' : ''}\nStatus: ${pet.isDeceased ? 'DECEASED' : 'Active'}\nPrivate Notes: ${pet.privateNotes || 'None'}`)}
-                      >
-                        Health Card
-                      </button>
+                      <div className="flex gap-xs">
+                        <button 
+                          className="btn-secondary text-xs flex items-center gap-xs"
+                          onClick={() => {
+                            setActiveModalItem(pet.id);
+                            setActiveDrawer('petPassport');
+                          }}
+                        >
+                          <Syringe size={14} className="text-teal" /> Passport
+                        </button>
+                        <button 
+                          className="btn-secondary text-xs"
+                          onClick={() => alert(`🏥 PET MEDICAL HEALTH CARD\n-------------------------\nName: ${pet.name}\nOwner: ${owner ? owner.name : 'Unassigned'}\nSpecies: ${pet.species.toUpperCase()} (${pet.breed || 'Mixed'})\nAge: ${pet.ageValue} ${pet.ageUnit} | Gender: ${pet.gender}\nBlood Group: ${pet.bloodGroup || 'Unspecified'}\nMicrochip: ${pet.microchipNumber || 'None'} (${pet.microchipLocation || 'N/A'})\nCard #: ${pet.cardNo || 'N/A'} | Protocol #: ${pet.protocolNo || 'N/A'}\nNeutered: ${pet.castrated ? 'Yes' : 'No'} ${pet.neuterDate ? `(${pet.neuterDate})` : ''}\nVaccinated: ${pet.vaccinated ? 'Yes' : 'No'} | Dewormed: ${pet.deworming ? 'Yes' : 'No'}\nBehavior: ${pet.temperament || 'Calm'} ${pet.isAggressive ? '⚠️ AGGRESSIVE RISK' : ''}\nStatus: ${pet.isDeceased ? 'DECEASED' : 'Active'}\nPrivate Notes: ${pet.privateNotes || 'None'}`)}
+                        >
+                          Health Card
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

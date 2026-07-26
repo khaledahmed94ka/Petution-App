@@ -97,6 +97,63 @@ const initialExpenses = [
   { id: 'exp-2', title: 'Clinic Electricity & Utilities', vendor: 'South Cairo Elec', category: 'Utilities', amount: 1200, date: '2026-07-23', paymentMethod: 'Cash', notes: 'July utility bill' }
 ];
 
+const initialVaccines = [
+  {
+    id: 'vac-1',
+    petId: 'pet-1',
+    vaccineName: 'Tricat Trio (FVRCP)',
+    manufacturer: 'Zoetis',
+    batchNumber: 'ZT-99210',
+    administeredDate: '2026-06-15',
+    dueDate: '2027-06-15',
+    vetName: 'Dr. Khaled ElGendy',
+    notes: 'Booster given. No adverse reaction.'
+  },
+  {
+    id: 'vac-2',
+    petId: 'pet-1',
+    vaccineName: 'Rabies Vaccine (Rabisin)',
+    manufacturer: 'Boehringer Ingelheim',
+    batchNumber: 'RB-44102',
+    administeredDate: '2026-06-15',
+    dueDate: '2027-06-15',
+    vetName: 'Dr. Khaled ElGendy',
+    notes: 'Annual Rabies shot.'
+  },
+  {
+    id: 'vac-3',
+    petId: 'pet-2',
+    vaccineName: 'Vanguard 7 (DHPP + L4)',
+    manufacturer: 'Zoetis',
+    batchNumber: 'VG-77219',
+    administeredDate: '2026-05-10',
+    dueDate: '2027-05-10',
+    vetName: 'Dr. Sarah Mahmoud',
+    notes: '5-in-1 combo vaccine.'
+  }
+];
+
+const initialSOAPNotes = [
+  {
+    id: 'soap-1',
+    visitId: 'vis-1',
+    petId: 'pet-1',
+    vetName: 'Dr. Khaled ElGendy',
+    date: '2026-07-24',
+    subjective: 'Owner reports mild sneezing for 2 days after indoor stay.',
+    tempC: 38.5,
+    weightKg: 4.2,
+    heartRateBpm: 120,
+    respiratoryRateBpm: 24,
+    assessment: 'Mild upper respiratory tract inflammation. Hydration good.',
+    plan: 'Prescribed oral antibiotic drops and rest. Recheck in 5 days if not improving.',
+    rxMedications: [
+      { name: 'Amoxicillin Drops 100mg/ml', dosage: '0.5 ml', frequency: 'Twice daily (BID)', duration: '7 days' },
+      { name: 'Vet Eye & Nasal Clear Drops', dosage: '2 drops', frequency: 'Three times daily', duration: '5 days' }
+    ]
+  }
+];
+
 const initialVisits = [
   {
     id: 'vis-1',
@@ -231,6 +288,16 @@ export const AppProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : initialExpenses;
   });
 
+  const [vaccines, setVaccines] = useState(() => {
+    const saved = localStorage.getItem('petution_vaccines');
+    return saved ? JSON.parse(saved) : initialVaccines;
+  });
+
+  const [soapNotes, setSoapNotes] = useState(() => {
+    const saved = localStorage.getItem('petution_soap_notes');
+    return saved ? JSON.parse(saved) : initialSOAPNotes;
+  });
+
   const [team, setTeam] = useState(() => {
     const saved = localStorage.getItem('petution_team');
     return saved ? JSON.parse(saved) : initialTeam;
@@ -300,6 +367,14 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('petution_expenses', JSON.stringify(expenses));
   }, [expenses]);
+
+  useEffect(() => {
+    localStorage.setItem('petution_vaccines', JSON.stringify(vaccines));
+  }, [vaccines]);
+
+  useEffect(() => {
+    localStorage.setItem('petution_soap_notes', JSON.stringify(soapNotes));
+  }, [soapNotes]);
 
   useEffect(() => {
     localStorage.setItem('petution_notifications', JSON.stringify(notifications));
@@ -452,6 +527,31 @@ export const AppProvider = ({ children }) => {
     setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
+  const addVaccine = (vacData) => {
+    const newVac = {
+      ...vacData,
+      id: `vac-${Date.now()}`
+    };
+    setVaccines(prev => [newVac, ...prev]);
+  };
+
+  const deleteVaccine = (id) => {
+    setVaccines(prev => prev.filter(v => v.id !== id));
+  };
+
+  const saveSOAPNote = (soapData) => {
+    const existingIndex = soapNotes.findIndex(s => s.visitId === soapData.visitId || s.id === soapData.id);
+    if (existingIndex >= 0) {
+      setSoapNotes(prev => prev.map((s, idx) => idx === existingIndex ? { ...s, ...soapData } : s));
+    } else {
+      const newSoap = {
+        ...soapData,
+        id: `soap-${Date.now()}`
+      };
+      setSoapNotes(prev => [newSoap, ...prev]);
+    }
+  };
+
   const importFullBackup = (backupData) => {
     if (!backupData || typeof backupData !== 'object') {
       alert('Invalid backup file format.');
@@ -463,6 +563,8 @@ export const AppProvider = ({ children }) => {
     if (backupData.products) setProducts(backupData.products);
     if (backupData.invoices) setInvoices(backupData.invoices);
     if (backupData.expenses) setExpenses(backupData.expenses);
+    if (backupData.vaccines) setVaccines(backupData.vaccines);
+    if (backupData.soapNotes) setSoapNotes(backupData.soapNotes);
     if (backupData.settings) updateSettings(backupData.settings);
     alert('System backup restored successfully!');
   };
@@ -705,6 +807,11 @@ export const AppProvider = ({ children }) => {
         expenses,
         addExpense,
         deleteExpense,
+        vaccines,
+        addVaccine,
+        deleteVaccine,
+        soapNotes,
+        saveSOAPNote,
         team,
         setTeam,
         invitations,

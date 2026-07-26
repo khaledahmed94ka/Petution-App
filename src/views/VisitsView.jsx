@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const VisitsView = () => {
-  const { visits, pets, setActiveDrawer } = useApp();
+  const { visits, pets, setActiveDrawer, setActiveModalItem } = useApp();
   const [stateFilter, setStateFilter] = useState('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -140,12 +140,23 @@ export const VisitsView = () => {
                       </span>
                     </td>
                     <td>
-                      <button 
-                        className="btn-secondary text-xs"
-                        onClick={() => alert(`Visit Details:\nPet: ${pet ? pet.name : 'Unknown'}\nDoctor: ${visit.doctorName}\nType: ${visit.visitType}\nDate: ${visit.date}\nTime: ${visit.time}\nState: ${visit.state}\nReason: ${visit.reason || 'N/A'}`)}
-                      >
-                        Manage Visit
-                      </button>
+                      <div className="flex gap-xs">
+                        <button 
+                          className="btn-secondary text-xs flex items-center gap-xs"
+                          onClick={() => {
+                            setActiveModalItem(visit.id);
+                            setActiveDrawer('soapNote');
+                          }}
+                        >
+                          <FileText size={14} className="text-teal" /> SOAP / Rx
+                        </button>
+                        <button 
+                          className="btn-secondary text-xs"
+                          onClick={() => alert(`Visit Details:\nPet: ${pet ? pet.name : 'Unknown'}\nDoctor: ${visit.doctorName}\nType: ${visit.visitType}\nDate: ${visit.date}\nTime: ${visit.time}\nState: ${visit.state}\nReason: ${visit.reason || 'N/A'}`)}
+                        >
+                          Manage Visit
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

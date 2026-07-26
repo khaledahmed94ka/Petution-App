@@ -26,12 +26,15 @@ import { AddExpenseDrawer } from './components/drawers/AddExpenseDrawer';
 import { AddItemDrawer } from './components/drawers/AddItemDrawer';
 import { ImportModalDrawer } from './components/drawers/ImportModalDrawer';
 import { InviteMemberDrawer } from './components/drawers/InviteMemberDrawer';
+import { PetPassportDrawer } from './components/drawers/PetPassportDrawer';
+import { AddVaccineDrawer } from './components/drawers/AddVaccineDrawer';
+import { SOAPNoteDrawer } from './components/drawers/SOAPNoteDrawer';
 import { X, LogOut, ShieldCheck } from 'lucide-react';
 
 const MainApp = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { user, logout, activeTab, setActiveTab, activeDrawer, setActiveDrawer } = useApp();
+  const { user, logout, activeTab, setActiveTab, activeDrawer, setActiveDrawer, activeModalItem } = useApp();
 
   if (!user?.isAuthenticated) {
     return <LoginView />;
@@ -93,6 +96,9 @@ const MainApp = () => {
       {activeDrawer === 'importClients' && <ImportModalDrawer targetType="clients" />}
       {activeDrawer === 'importPets' && <ImportModalDrawer targetType="pets" />}
       {activeDrawer === 'importProducts' && <ImportModalDrawer targetType="products" />}
+      {activeDrawer === 'petPassport' && <PetPassportDrawer petId={activeModalItem} />}
+      {activeDrawer === 'addVaccine' && <AddVaccineDrawer />}
+      {activeDrawer === 'soapNote' && <SOAPNoteDrawer visitId={activeModalItem} />}
 
       {/* User Profile Modal */}
       {activeDrawer === 'profile' && (
