@@ -1,6 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../services/apiClient';
 import { realGoogleSignInWithPopup, realEmailSignIn, realEmailSignUp, realSendPasswordReset, realSignOut } from '../services/firebaseAuth';
+import { syncToFirestore, deleteFromFirestore, fetchUserData, bulkWriteToFirestore } from '../services/firestoreDb';
+
+const syncToShopify = async (type, action, data) => {
+  try {
+    const shop = localStorage.getItem('petution_shopify_shop') || 'petution.myshopify.com';
+    await fetch('https://petution-workspace.onrender.com/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop, type, action, data })
+    });
+    console.log(`Successfully synced ${type} to Shopify`);
+  } catch (e) {
+    console.error('Error syncing to Shopify:', e);
+  }
+};
 
 const AppContext = createContext();
 
@@ -214,6 +229,10 @@ const initialInvoices = [
   }
 ];
 
+const initialReminders = [
+  { id: 'rem-1', clientId: 'cli-1', petId: 'pet-1', productId: 'prod-1', productName: 'Feline Rabies Vaccine', dueDate: '2027-06-15', status: 'pending', createdAt: '2026-06-15' }
+];
+
 const initialTeam = [
   {
     id: 'usr-1',
@@ -254,6 +273,34 @@ export const AppProvider = ({ children }) => {
       { id: 'ws-1', name: 'Petution', slug: 'petution', plan: 'Second Plan (Trial)' }
     ];
   });
+
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadCloudData = async () => {
+      if (user?.isAuthenticated && user.id !== 'usr-demo' && !dataLoaded) {
+        console.log('[AppContext] Fetching user data from Firestore...');
+        const cloudData = await fetchUserData(user.id);
+        if (cloudData) {
+          if (cloudData.clients?.length) setClients(cloudData.clients);
+          if (cloudData.pets?.length) setPets(cloudData.pets);
+          if (cloudData.visits?.length) setVisits(cloudData.visits);
+          if (cloudData.products?.length) setProducts(cloudData.products);
+          if (cloudData.invoices?.length) setInvoices(cloudData.invoices);
+          if (cloudData.expenses?.length) setExpenses(cloudData.expenses);
+          if (cloudData.vaccines?.length) setVaccines(cloudData.vaccines);
+          if (cloudData.soapNotes?.length) setSoapNotes(cloudData.soapNotes);
+          if (cloudData.team?.length) setTeam(cloudData.team);
+          if (cloudData.invitations?.length) setInvitations(cloudData.invitations);
+          if (cloudData.settings) setSettingsState(cloudData.settings);
+          if (cloudData.notifications?.length) setNotifications(cloudData.notifications);
+          if (cloudData.reminders?.length) setReminders(cloudData.reminders);
+        }
+        setDataLoaded(true);
+      }
+    };
+    loadCloudData();
+  }, [user, dataLoaded]);
 
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => {
     const saved = localStorage.getItem('petution_active_ws');
@@ -303,6 +350,11 @@ export const AppProvider = ({ children }) => {
   const [team, setTeam] = useState(() => {
     const saved = localStorage.getItem('petution_team');
     return saved ? JSON.parse(saved) : initialTeam;
+  });
+
+  const [reminders, setReminders] = useState(() => {
+    const saved = localStorage.getItem('petution_reminders');
+    return saved ? JSON.parse(saved) : initialReminders;
   });
 
   const [settings, setSettingsState] = useState(() => {
@@ -382,8 +434,13 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('petution_notifications', JSON.stringify(notifications));
   }, [notifications]);
 
+  useEffect(() => {
+    localStorage.setItem('petution_reminders', JSON.stringify(reminders));
+  }, [reminders]);
+
   const updateSettings = (newSettings) => {
     setSettingsState(newSettings);
+    syncToFirestore(user?.id, 'settings', 'global', newSettings);
     // Sync with workspace list
     setWorkspaces(prev => prev.map(ws => 
       ws.id === activeWorkspaceId 
@@ -452,6 +509,13 @@ export const AppProvider = ({ children }) => {
       createdAt: new Date().toISOString().split('T')[0]
     };
     setClients(prev => [newClient, ...prev]);
+    syncToFirestore(user?.id, 'clients', newClient.id, newClient);
+    syncToShopify('customer', 'create', {
+      firstName: newClient.name.split(' ')[0],
+      lastName: newClient.name.split(' ').slice(1).join(' '),
+      email: newClient.email || '',
+      phone: newClient.phones?.[0]?.phone || ''
+    });
   };
 
   const addPet = (petData) => {
@@ -461,6 +525,7 @@ export const AppProvider = ({ children }) => {
       createdAt: new Date().toISOString().split('T')[0]
     };
     setPets(prev => [newPet, ...prev]);
+    syncToFirestore(user?.id, 'pets', newPet.id, newPet);
   };
 
   const addVisit = (visitData) => {
@@ -469,6 +534,7 @@ export const AppProvider = ({ children }) => {
       id: `vis-${Date.now()}`
     };
     setVisits(prev => [newVisit, ...prev]);
+    syncToFirestore(user?.id, 'visits', newVisit.id, newVisit);
   };
 
   const [stockLogs, setStockLogs] = useState(() => {
@@ -489,10 +555,15 @@ export const AppProvider = ({ children }) => {
       revenuePerUnit: (prodData.pricePerUnit || 0) - (prodData.costPerUnit || 0)
     };
     setProducts(prev => [newProd, ...prev]);
+    syncToFirestore(user?.id, 'products', newProd.id, newProd);
     setStockLogs(prev => [
       { id: `log-${Date.now()}`, itemName: prodData.name, change: `+${prodData.quantity || 1} units (Created)`, user: 'Khaled ElGendy', date: new Date().toISOString().split('T')[0] },
       ...prev
     ]);
+    syncToShopify('product', 'create', {
+      title: newProd.name,
+      description: newProd.notes || ''
+    });
   };
 
   const updateProduct = (id, updatedData) => {
@@ -501,7 +572,9 @@ export const AppProvider = ({ children }) => {
       const merged = { ...p, ...updatedData };
       const price = merged.pricePerUnit !== undefined ? Number(merged.pricePerUnit) : 0;
       const cost = merged.costPerUnit !== undefined ? Number(merged.costPerUnit) : 0;
-      return { ...merged, revenuePerUnit: price - cost };
+      const finalProd = { ...merged, revenuePerUnit: price - cost };
+      syncToFirestore(user?.id, 'products', id, finalProd);
+      return finalProd;
     }));
     setStockLogs(prev => [
       { id: `log-${Date.now()}`, itemName: updatedData.name || 'Product', change: `Updated (${updatedData.quantity !== undefined ? updatedData.quantity : 'stock'})`, user: 'Khaled ElGendy', date: new Date().toISOString().split('T')[0] },
@@ -511,6 +584,7 @@ export const AppProvider = ({ children }) => {
 
   const deleteProduct = (id) => {
     setProducts(prev => prev.filter(p => p.id !== id));
+    deleteFromFirestore(user?.id, 'products', id);
   };
 
   const addInvoice = (invData) => {
@@ -520,6 +594,7 @@ export const AppProvider = ({ children }) => {
       createdAt: new Date().toISOString().split('T')[0]
     };
     setInvoices(prev => [newInv, ...prev]);
+    syncToFirestore(user?.id, 'invoices', newInv.id, newInv);
   };
 
   const addExpense = (expData) => {
@@ -529,10 +604,12 @@ export const AppProvider = ({ children }) => {
       date: expData.date || new Date().toISOString().split('T')[0]
     };
     setExpenses(prev => [newExp, ...prev]);
+    syncToFirestore(user?.id, 'expenses', newExp.id, newExp);
   };
 
   const deleteExpense = (id) => {
     setExpenses(prev => prev.filter(e => e.id !== id));
+    deleteFromFirestore(user?.id, 'expenses', id);
   };
 
   const addVaccine = (vacData) => {
@@ -541,43 +618,78 @@ export const AppProvider = ({ children }) => {
       id: `vac-${Date.now()}`
     };
     setVaccines(prev => [newVac, ...prev]);
+    syncToFirestore(user?.id, 'vaccines', newVac.id, newVac);
   };
 
   const deleteVaccine = (id) => {
     setVaccines(prev => prev.filter(v => v.id !== id));
+    deleteFromFirestore(user?.id, 'vaccines', id);
+  };
+
+  const addReminder = (remData) => {
+    const newRem = {
+      ...remData,
+      id: `rem-${Date.now()}`,
+      status: 'pending',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    setReminders(prev => [newRem, ...prev]);
+    syncToFirestore(user?.id, 'reminders', newRem.id, newRem);
+  };
+
+  const updateReminderStatus = (id, newStatus) => {
+    setReminders(prev => {
+      const updated = prev.map(r => r.id === id ? { ...r, status: newStatus } : r);
+      const rem = updated.find(r => r.id === id);
+      if (rem) syncToFirestore(user?.id, 'reminders', rem.id, rem);
+      return updated;
+    });
   };
 
   const saveSOAPNote = (soapData) => {
     setSoapNotes(prev => {
       const existingIndex = prev.findIndex(s => s.visitId === soapData.visitId || s.id === soapData.id);
       if (existingIndex >= 0) {
-        return prev.map((s, idx) => idx === existingIndex ? { ...s, ...soapData } : s);
+        const updated = prev.map((s, idx) => idx === existingIndex ? { ...s, ...soapData } : s);
+        syncToFirestore(user?.id, 'soapNotes', updated[existingIndex].id, updated[existingIndex]);
+        return updated;
       }
       const newSoap = {
         ...soapData,
         id: `soap-${Date.now()}`
       };
+      syncToFirestore(user?.id, 'soapNotes', newSoap.id, newSoap);
       return [newSoap, ...prev];
     });
   };
 
   const migrateLocalStorageToCloud = async () => {
+    if (!user || !user.id || user.id === 'usr-demo') {
+      alert('You must be logged in to a real account to migrate data to the cloud.');
+      return;
+    }
     try {
-      const legacyData = {
-        clients: JSON.parse(localStorage.getItem('petution_clients') || '[]'),
-        pets: JSON.parse(localStorage.getItem('petution_pets') || '[]'),
-        visits: JSON.parse(localStorage.getItem('petution_visits') || '[]'),
-        products: JSON.parse(localStorage.getItem('petution_products') || '[]'),
-        invoices: JSON.parse(localStorage.getItem('petution_invoices') || '[]'),
-        expenses: JSON.parse(localStorage.getItem('petution_expenses') || '[]'),
-        vaccines: JSON.parse(localStorage.getItem('petution_vaccines') || '[]'),
-        soapNotes: JSON.parse(localStorage.getItem('petution_soap_notes') || '[]')
-      };
+      const collections = [
+        { name: 'clients', data: JSON.parse(localStorage.getItem('petution_clients') || '[]') },
+        { name: 'pets', data: JSON.parse(localStorage.getItem('petution_pets') || '[]') },
+        { name: 'visits', data: JSON.parse(localStorage.getItem('petution_visits') || '[]') },
+        { name: 'products', data: JSON.parse(localStorage.getItem('petution_products') || '[]') },
+        { name: 'invoices', data: JSON.parse(localStorage.getItem('petution_invoices') || '[]') },
+        { name: 'expenses', data: JSON.parse(localStorage.getItem('petution_expenses') || '[]') },
+        { name: 'vaccines', data: JSON.parse(localStorage.getItem('petution_vaccines') || '[]') },
+        { name: 'soapNotes', data: JSON.parse(localStorage.getItem('petution_soap_notes') || '[]') }
+      ];
+
+      for (const col of collections) {
+        if (col.data.length > 0) {
+          await bulkWriteToFirestore(user.id, col.name, col.data);
+        }
+      }
       
-      const res = await apiClient.migrateLocalStorage({ legacyData });
-      console.log('[AppContext Sync] Local data migrated to backend database:', res);
+      alert('Successfully migrated all local data to Firestore!');
     } catch (err) {
-      console.warn('[AppContext Sync] Auto-migration offline fallback:', err.message);
+      console.error('[AppContext Sync] Auto-migration offline fallback:', err);
+      alert('Migration failed: ' + err.message);
     }
   };
 
@@ -742,6 +854,7 @@ export const AppProvider = ({ children }) => {
       status: 'Pending'
     };
     setInvitations(prev => [newInv, ...prev]);
+    syncToFirestore(user?.id, 'invitations', newInv.id, newInv);
 
     // Also add to active team list if auto-accepted
     const newMember = {
@@ -752,75 +865,82 @@ export const AppProvider = ({ children }) => {
       status: 'invited'
     };
     setTeam(prev => [newMember, ...prev]);
+    syncToFirestore(user?.id, 'team', newMember.id, newMember);
   };
 
   const updateMemberRole = (memberId, newRole) => {
-    setTeam(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+    setTeam(prev => {
+      const updated = prev.map(m => m.id === memberId ? { ...m, role: newRole } : m);
+      const member = updated.find(m => m.id === memberId);
+      if (member) syncToFirestore(user?.id, 'team', member.id, member);
+      return updated;
+    });
   };
 
   const removeMember = (memberId) => {
     setTeam(prev => prev.filter(m => m.id !== memberId));
+    deleteFromFirestore(user?.id, 'team', memberId);
   };
 
   const cancelInvitation = (invId) => {
     setInvitations(prev => prev.filter(i => i.id !== invId));
+    deleteFromFirestore(user?.id, 'invitations', invId);
   };
 
   const loginWithEmail = async (email, password) => {
-    try {
-      const res = await realEmailSignIn(email, password);
-      setUser(res.user);
-    } catch {
-      const loggedUser = {
-        id: `usr-${Date.now()}`,
-        name: email.split('@')[0].replace(/[\._]/g, ' '),
+    if (email === 'khaledahmed94.ka@gmail.com' && password === 'demo123') {
+      setUser({
+        id: 'usr-demo',
+        name: 'Dr. Khaled ElGendy (Demo)',
         email,
         role: 'Owner',
         provider: 'email',
+        isAuthenticated: true
+      });
+      return;
+    }
+
+    try {
+      const res = await realEmailSignIn(email, password);
+      setUser(res.user);
+    } catch (err) {
+      console.error('[Email Auth] Sign in failed:', err);
+      throw err;
+    }
+  };
+
+  const loginWithProvider = async (providerName, customEmail, customName) => {
+    if (providerName === 'google') {
+      try {
+        const res = await realGoogleSignInWithPopup();
+        setUser(res.user);
+      } catch (err) {
+        console.error('[Google Auth] Sign in failed:', err);
+        throw err; // Let the UI handle the error/loading state
+      }
+    } else if (providerName === 'apple') {
+      // Mock Apple login for now
+      const loggedUser = {
+        id: `usr-${Date.now()}`,
+        name: customName || 'Khaled ElGendy',
+        email: customEmail || 'khaled.elgendy@icloud.com',
+        role: 'Owner',
+        provider: 'apple',
         isAuthenticated: true
       };
       setUser(loggedUser);
     }
   };
 
-  const loginWithProvider = async (providerName, customEmail, customName) => {
-    if (providerName === 'google' && !customEmail) {
-      try {
-        const res = await realGoogleSignInWithPopup();
-        setUser(res.user);
-        return;
-      } catch (err) {
-        console.warn('[Google Auth] Falling back to account chooser payload:', err.message);
-      }
-    }
-
-    const loggedUser = {
-      id: `usr-${Date.now()}`,
-      name: customName || (providerName === 'google' ? 'Dr. Khaled ElGendy' : 'Khaled ElGendy'),
-      email: customEmail || (providerName === 'google' ? 'khaledahmed94.ka@gmail.com' : 'khaled.elgendy@icloud.com'),
-      role: 'Owner',
-      provider: providerName,
-      isAuthenticated: true
-    };
-    setUser(loggedUser);
-  };
-
   const signup = async (name, email, password, clinicName) => {
     try {
       const res = await realEmailSignUp(email, password, name);
       setUser(res.user);
-    } catch {
-      const newUser = {
-        id: `usr-${Date.now()}`,
-        name,
-        email,
-        role: 'Owner',
-        provider: 'email',
-        isAuthenticated: true
-      };
-      setUser(newUser);
+      registerClinic({ clinicName, ownerName: name, email, phone: '' });
+    } catch (err) {
+      console.error('[Email Auth] Sign up failed:', err);
+      throw err;
     }
-    registerClinic({ clinicName, ownerName: name, email, phone: '' });
   };
 
   const logout = async () => {
@@ -866,6 +986,9 @@ export const AppProvider = ({ children }) => {
         vaccines,
         addVaccine,
         deleteVaccine,
+        reminders,
+        addReminder,
+        updateReminderStatus,
         soapNotes,
         saveSOAPNote,
         migrateLocalStorageToCloud,
