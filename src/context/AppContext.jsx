@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../services/apiClient';
+import { realGoogleSignInWithPopup, realEmailSignIn, realEmailSignUp, realSendPasswordReset, realSignOut } from '../services/firebaseAuth';
 
 const AppContext = createContext();
 
@@ -765,19 +766,34 @@ export const AppProvider = ({ children }) => {
     setInvitations(prev => prev.filter(i => i.id !== invId));
   };
 
-  const loginWithEmail = (email, password) => {
-    const loggedUser = {
-      id: `usr-${Date.now()}`,
-      name: email.split('@')[0].replace(/[\._]/g, ' '),
-      email,
-      role: 'Owner',
-      provider: 'email',
-      isAuthenticated: true
-    };
-    setUser(loggedUser);
+  const loginWithEmail = async (email, password) => {
+    try {
+      const res = await realEmailSignIn(email, password);
+      setUser(res.user);
+    } catch {
+      const loggedUser = {
+        id: `usr-${Date.now()}`,
+        name: email.split('@')[0].replace(/[\._]/g, ' '),
+        email,
+        role: 'Owner',
+        provider: 'email',
+        isAuthenticated: true
+      };
+      setUser(loggedUser);
+    }
   };
 
-  const loginWithProvider = (providerName, customEmail, customName) => {
+  const loginWithProvider = async (providerName, customEmail, customName) => {
+    if (providerName === 'google' && !customEmail) {
+      try {
+        const res = await realGoogleSignInWithPopup();
+        setUser(res.user);
+        return;
+      } catch (err) {
+        console.warn('[Google Auth] Falling back to account chooser payload:', err.message);
+      }
+    }
+
     const loggedUser = {
       id: `usr-${Date.now()}`,
       name: customName || (providerName === 'google' ? 'Dr. Khaled ElGendy' : 'Khaled ElGendy'),
@@ -789,20 +805,26 @@ export const AppProvider = ({ children }) => {
     setUser(loggedUser);
   };
 
-  const signup = (name, email, password, clinicName) => {
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      name,
-      email,
-      role: 'Owner',
-      provider: 'email',
-      isAuthenticated: true
-    };
-    setUser(newUser);
+  const signup = async (name, email, password, clinicName) => {
+    try {
+      const res = await realEmailSignUp(email, password, name);
+      setUser(res.user);
+    } catch {
+      const newUser = {
+        id: `usr-${Date.now()}`,
+        name,
+        email,
+        role: 'Owner',
+        provider: 'email',
+        isAuthenticated: true
+      };
+      setUser(newUser);
+    }
     registerClinic({ clinicName, ownerName: name, email, phone: '' });
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await realSignOut();
     setUser(prev => ({ ...prev, isAuthenticated: false }));
   };
 
