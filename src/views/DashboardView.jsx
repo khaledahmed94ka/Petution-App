@@ -5,10 +5,6 @@ import {
   Dog, 
   MessageCircle, 
   ArrowRight, 
-  AlertCircle, 
-  Clock, 
-  CalendarCheck, 
-  Receipt,
   GripVertical
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';

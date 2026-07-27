@@ -495,9 +495,15 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateProduct = (id, updatedData) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updatedData, revenuePerUnit: (updatedData.pricePerUnit || 0) - (updatedData.costPerUnit || 0) } : p));
+    setProducts(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const merged = { ...p, ...updatedData };
+      const price = merged.pricePerUnit !== undefined ? Number(merged.pricePerUnit) : 0;
+      const cost = merged.costPerUnit !== undefined ? Number(merged.costPerUnit) : 0;
+      return { ...merged, revenuePerUnit: price - cost };
+    }));
     setStockLogs(prev => [
-      { id: `log-${Date.now()}`, itemName: updatedData.name, change: `Updated (${updatedData.quantity || 0} stock)`, user: 'Khaled ElGendy', date: new Date().toISOString().split('T')[0] },
+      { id: `log-${Date.now()}`, itemName: updatedData.name || 'Product', change: `Updated (${updatedData.quantity !== undefined ? updatedData.quantity : 'stock'})`, user: 'Khaled ElGendy', date: new Date().toISOString().split('T')[0] },
       ...prev
     ]);
   };
@@ -541,16 +547,17 @@ export const AppProvider = ({ children }) => {
   };
 
   const saveSOAPNote = (soapData) => {
-    const existingIndex = soapNotes.findIndex(s => s.visitId === soapData.visitId || s.id === soapData.id);
-    if (existingIndex >= 0) {
-      setSoapNotes(prev => prev.map((s, idx) => idx === existingIndex ? { ...s, ...soapData } : s));
-    } else {
+    setSoapNotes(prev => {
+      const existingIndex = prev.findIndex(s => s.visitId === soapData.visitId || s.id === soapData.id);
+      if (existingIndex >= 0) {
+        return prev.map((s, idx) => idx === existingIndex ? { ...s, ...soapData } : s);
+      }
       const newSoap = {
         ...soapData,
         id: `soap-${Date.now()}`
       };
-      setSoapNotes(prev => [newSoap, ...prev]);
-    }
+      return [newSoap, ...prev];
+    });
   };
 
   const migrateLocalStorageToCloud = async () => {
@@ -629,29 +636,29 @@ export const AppProvider = ({ children }) => {
     const formatted = newPets.map((p, idx) => ({
       id: p.id || `pet-imp-${Date.now()}-${idx}`,
       name: p.name || p.PetName || 'Imported Pet',
-      ageValue: Number(p.ageValue || p.Age) || 1,
-      ageUnit: p.ageUnit || 'years',
+      ageValue: (p.ageValue !== undefined && p.ageValue !== '') ? Number(p.ageValue) : ((p.Age !== undefined && p.Age !== '') ? Number(p.Age) : 1),
+      ageUnit: p.ageUnit || p.AgeUnit || 'years',
       species: (p.species || p.Species || p.Type || 'cat').toLowerCase(),
       gender: p.gender || p.Gender || 'male',
-      vaccinated: String(p.vaccinated || p.Vaccinated || 'false').toLowerCase() === 'true' || String(p.vaccinated || p.Vaccinated || '') === 'Yes',
-      deworming: String(p.deworming).toLowerCase() === 'true',
-      antiflea: String(p.antiflea).toLowerCase() === 'true',
-      castrated: String(p.castrated).toLowerCase() === 'true',
-      neuterDate: p.neuterDate || '',
+      vaccinated: String(p.vaccinated ?? p.Vaccinated ?? 'false').toLowerCase() === 'true' || String(p.vaccinated ?? p.Vaccinated ?? '') === 'Yes',
+      deworming: String(p.deworming ?? p.Deworming ?? 'false').toLowerCase() === 'true' || String(p.deworming ?? p.Deworming ?? '') === 'Yes',
+      antiflea: String(p.antiflea ?? p.Antiflea ?? 'false').toLowerCase() === 'true' || String(p.antiflea ?? p.Antiflea ?? '') === 'Yes',
+      castrated: String(p.castrated ?? p.Castrated ?? 'false').toLowerCase() === 'true' || String(p.castrated ?? p.Castrated ?? '') === 'Yes',
+      neuterDate: p.neuterDate || p.NeuterDate || '',
       breed: p.breed || p.Breed || '',
-      temperament: p.temperament || 'Calm',
-      color: p.color || '',
-      bloodGroup: p.bloodGroup || 'Unspecified',
-      cardNo: p.cardNo || '',
-      protocolNo: p.protocolNo || '',
+      temperament: p.temperament || p.Temperament || 'Calm',
+      color: p.color || p.Color || '',
+      bloodGroup: p.bloodGroup || p.BloodGroup || 'Unspecified',
+      cardNo: p.cardNo || p.CardNo || '',
+      protocolNo: p.protocolNo || p.ProtocolNo || '',
       microchipNumber: p.microchipNumber || p.MicrochipNumber || '',
-      microchipDate: p.microchipDate || '',
-      microchipLocation: p.microchipLocation || '',
-      isAggressive: String(p.isAggressive).toLowerCase() === 'true',
-      isDeceased: String(p.isDeceased).toLowerCase() === 'true',
-      deathDate: p.deathDate || '',
-      privateNotes: p.privateNotes || '',
-      tags: Array.isArray(p.tags) ? p.tags : ['Imported'],
+      microchipDate: p.microchipDate || p.MicrochipDate || '',
+      microchipLocation: p.microchipLocation || p.MicrochipLocation || '',
+      isAggressive: String(p.isAggressive ?? p.IsAggressive ?? 'false').toLowerCase() === 'true',
+      isDeceased: String(p.isDeceased ?? p.IsDeceased ?? 'false').toLowerCase() === 'true',
+      deathDate: p.deathDate || p.DeathDate || '',
+      privateNotes: p.privateNotes || p.PrivateNotes || '',
+      tags: Array.isArray(p.tags) ? p.tags : (p.Tags ? String(p.Tags).split(',') : ['Imported']),
       nutrition: ['Dry food'],
       owners: [],
       createdAt: p.createdAt || p.CreatedDate || new Date().toISOString().split('T')[0]
@@ -665,19 +672,25 @@ export const AppProvider = ({ children }) => {
       alert('No valid product data found in file.');
       return;
     }
-    const formatted = newProds.map((p, idx) => ({
-      id: p.id || `prod-imp-${Date.now()}-${idx}`,
-      name: p.name || p.ItemName || 'Imported Product',
-      type: p.type || p.Type || 'product',
-      unitType: p.unitType || p.UnitType || 'Piece',
-      pricingUnit: p.pricingUnit || p.PricingUnit || 'Piece',
-      pricePerUnit: Number(p.pricePerUnit || p.PricePerUnit) || 100,
-      costPerUnit: Number(p.costPerUnit || p.CostPerUnit) || 50,
-      revenuePerUnit: (Number(p.pricePerUnit || p.PricePerUnit) || 100) - (Number(p.costPerUnit || p.CostPerUnit) || 50),
-      quantity: Number(p.quantity || p.Quantity) || 10,
-      alertThreshold: Number(p.alertThreshold || p.AlertThreshold) || 5,
-      notes: p.notes || ''
-    }));
+    const formatted = newProds.map((p, idx) => {
+      const price = (p.pricePerUnit !== undefined && p.pricePerUnit !== '') ? Number(p.pricePerUnit) : ((p.PricePerUnit !== undefined && p.PricePerUnit !== '') ? Number(p.PricePerUnit) : 100);
+      const cost = (p.costPerUnit !== undefined && p.costPerUnit !== '') ? Number(p.costPerUnit) : ((p.CostPerUnit !== undefined && p.CostPerUnit !== '') ? Number(p.CostPerUnit) : 50);
+      const qty = (p.quantity !== undefined && p.quantity !== '') ? Number(p.quantity) : ((p.Quantity !== undefined && p.Quantity !== '') ? Number(p.Quantity) : 10);
+      const threshold = (p.alertThreshold !== undefined && p.alertThreshold !== '') ? Number(p.alertThreshold) : ((p.AlertThreshold !== undefined && p.AlertThreshold !== '') ? Number(p.AlertThreshold) : 5);
+      return {
+        id: p.id || `prod-imp-${Date.now()}-${idx}`,
+        name: p.name || p.ItemName || 'Imported Product',
+        type: p.type || p.Type || 'product',
+        unitType: p.unitType || p.UnitType || 'Piece',
+        pricingUnit: p.pricingUnit || p.PricingUnit || 'Piece',
+        pricePerUnit: price,
+        costPerUnit: cost,
+        revenuePerUnit: price - cost,
+        quantity: qty,
+        alertThreshold: threshold,
+        notes: p.notes || p.Notes || ''
+      };
+    });
     setProducts(prev => [...formatted, ...prev]);
     alert(`Successfully imported ${formatted.length} products/services!`);
   };

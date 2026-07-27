@@ -13,7 +13,7 @@ export const ClientsView = () => {
 
   const filteredClients = clients.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.phones.some(p => p.phone.includes(searchTerm));
+      c.phones?.some(p => p.phone?.includes(searchTerm));
     const matchesTag = selectedTag ? c.tags?.includes(selectedTag) : true;
     return matchesSearch && matchesTag;
   });

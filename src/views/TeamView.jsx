@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Search, ShieldCheck, Mail, Trash2, MoreVertical } from 'lucide-react';
+import { UserPlus, Search } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const TeamView = () => {
@@ -15,7 +15,6 @@ export const TeamView = () => {
   const [activeTab, setActiveTab] = useState('members');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  const [selectedMemberMenu, setSelectedMemberMenu] = useState(null);
 
   const filteredMembers = team.filter(m => {
     const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.email.toLowerCase().includes(searchTerm.toLowerCase());

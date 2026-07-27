@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Filter, FileText } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const VisitsView = () => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, CheckCircle2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Building2, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const RegisterClinicView = ({ onComplete }) => {

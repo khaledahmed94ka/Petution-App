@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/dataExportImport';
 
 export const ExpensesView = () => {
-  const { expenses, addExpense, deleteExpense, setActiveDrawer } = useApp();
+  const { expenses, deleteExpense, setActiveDrawer } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 

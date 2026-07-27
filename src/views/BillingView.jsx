@@ -3,7 +3,7 @@ import { CheckCircle2, ArrowRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const BillingView = () => {
-  const { clients, pets, team } = useApp();
+  const { pets, team } = useApp();
   const [viewMode, setViewMode] = useState('overview'); // 'overview' | 'stepper'
   const [selectedPlan, setSelectedPlan] = useState('Second Plan');
 

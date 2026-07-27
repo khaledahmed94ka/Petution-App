@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Download, Upload, Database, ShieldCheck, Trash2, AlertTriangle } from 'lucide-react';
+import { Camera, Download, Upload, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportSystemBackupJSON } from '../utils/dataExportImport';
 
