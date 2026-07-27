@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Search, Plus, Filter, MessageCircle, Download, Upload } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/dataExportImport';
+import { ClientProfileModal } from '../components/modals/ClientProfileModal';
 
 export const ClientsView = () => {
   const { clients, pets, setActiveDrawer } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [showTagFilter, setShowTagFilter] = useState(false);
   const [selectedTag, setSelectedTag] = useState('');
+  const [selectedClient, setSelectedClient] = useState(null);
 
   const allTags = Array.from(new Set(clients.flatMap(c => c.tags || [])));
 
@@ -161,7 +163,7 @@ export const ClientsView = () => {
                     <td>
                       <button 
                         className="btn-secondary text-xs"
-                        onClick={() => alert(`Client Profile: ${client.name}\nPhone: ${primaryPhone?.phone || 'N/A'}\nAddress: ${client.street}, ${client.district}, ${client.governorate}`)}
+                        onClick={() => setSelectedClient(client)}
                       >
                         View Profile
                       </button>
@@ -173,6 +175,13 @@ export const ClientsView = () => {
           </tbody>
         </table>
       </div>
+
+      {selectedClient && (
+        <ClientProfileModal 
+          client={selectedClient} 
+          onClose={() => setSelectedClient(null)} 
+        />
+      )}
     </div>
   );
 };

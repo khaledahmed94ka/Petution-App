@@ -777,11 +777,11 @@ export const AppProvider = ({ children }) => {
     setUser(loggedUser);
   };
 
-  const loginWithProvider = (providerName) => {
+  const loginWithProvider = (providerName, customEmail, customName) => {
     const loggedUser = {
       id: `usr-${Date.now()}`,
-      name: providerName === 'google' ? 'Dr. Khaled ElGendy (Google)' : 'Dr. Khaled ElGendy (Apple)',
-      email: providerName === 'google' ? 'khaledahmed94.ka@gmail.com' : 'khaled.elgendy@icloud.com',
+      name: customName || (providerName === 'google' ? 'Dr. Khaled ElGendy' : 'Khaled ElGendy'),
+      email: customEmail || (providerName === 'google' ? 'khaledahmed94.ka@gmail.com' : 'khaled.elgendy@icloud.com'),
       role: 'Owner',
       provider: providerName,
       isAuthenticated: true

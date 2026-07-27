@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Search, Plus, Download, Upload, ShieldAlert, Cpu, HeartOff, Syringe } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/dataExportImport';
+import { PetHealthCardModal } from '../components/modals/PetHealthCardModal';
 
 export const PetsView = () => {
   const { pets, clients, setActiveDrawer, setActiveModalItem } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecies, setSelectedSpecies] = useState('All');
+  const [selectedPetForCard, setSelectedPetForCard] = useState(null);
 
   const speciesOptions = ['All', 'Cat', 'Dog', 'Turtle', 'Bird', 'Other'];
 
@@ -197,7 +199,7 @@ export const PetsView = () => {
                         </button>
                         <button 
                           className="btn-secondary text-xs"
-                          onClick={() => alert(`🏥 PET MEDICAL HEALTH CARD\n-------------------------\nName: ${pet.name}\nOwner: ${owner ? owner.name : 'Unassigned'}\nSpecies: ${pet.species.toUpperCase()} (${pet.breed || 'Mixed'})\nAge: ${pet.ageValue} ${pet.ageUnit} | Gender: ${pet.gender}\nBlood Group: ${pet.bloodGroup || 'Unspecified'}\nMicrochip: ${pet.microchipNumber || 'None'} (${pet.microchipLocation || 'N/A'})\nCard #: ${pet.cardNo || 'N/A'} | Protocol #: ${pet.protocolNo || 'N/A'}\nNeutered: ${pet.castrated ? 'Yes' : 'No'} ${pet.neuterDate ? `(${pet.neuterDate})` : ''}\nVaccinated: ${pet.vaccinated ? 'Yes' : 'No'} | Dewormed: ${pet.deworming ? 'Yes' : 'No'}\nBehavior: ${pet.temperament || 'Calm'} ${pet.isAggressive ? '⚠️ AGGRESSIVE RISK' : ''}\nStatus: ${pet.isDeceased ? 'DECEASED' : 'Active'}\nPrivate Notes: ${pet.privateNotes || 'None'}`)}
+                          onClick={() => setSelectedPetForCard(pet)}
                         >
                           Health Card
                         </button>
@@ -216,8 +218,14 @@ export const PetsView = () => {
         .text-rose { color: #e11d48; }
         .badge-rose { background: #ffe4e6; color: #e11d48; border: 1px solid #fecdd3; }
         .row-deceased { opacity: 0.65; background: #fafafa; }
-        .font-mono { font-family: monospace; }
       `}</style>
+
+      {selectedPetForCard && (
+        <PetHealthCardModal 
+          pet={selectedPetForCard} 
+          onClose={() => setSelectedPetForCard(null)} 
+        />
+      )}
     </div>
   );
 };

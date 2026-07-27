@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Plus, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { ManageVisitModal } from '../components/modals/ManageVisitModal';
 
 export const VisitsView = () => {
   const { visits, pets, setActiveDrawer, setActiveModalItem } = useApp();
   const [stateFilter, setStateFilter] = useState('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [selectedVisit, setSelectedVisit] = useState(null);
 
   const filteredVisits = visits.filter(visit => {
     if (stateFilter !== 'all' && visit.state !== stateFilter) return false;
@@ -152,7 +154,7 @@ export const VisitsView = () => {
                         </button>
                         <button 
                           className="btn-secondary text-xs"
-                          onClick={() => alert(`Visit Details:\nPet: ${pet ? pet.name : 'Unknown'}\nDoctor: ${visit.doctorName}\nType: ${visit.visitType}\nDate: ${visit.date}\nTime: ${visit.time}\nState: ${visit.state}\nReason: ${visit.reason || 'N/A'}`)}
+                          onClick={() => setSelectedVisit(visit)}
                         >
                           Manage Visit
                         </button>
@@ -179,6 +181,13 @@ export const VisitsView = () => {
         }
         .self-end { align-self: flex-end; }
       `}</style>
+
+      {selectedVisit && (
+        <ManageVisitModal 
+          visit={selectedVisit} 
+          onClose={() => setSelectedVisit(null)} 
+        />
+      )}
     </div>
   );
 };
