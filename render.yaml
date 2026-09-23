@@ -2,12 +2,22 @@ services:
   - type: web
     name: petution-app
     env: node
-    buildCommand: npm run build
-    startCommand: node server/index.js
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_VERSION
         value: 20.11.0
-      - key: PORT
-        value: 3001
-      - key: DATABASE_URL
-        value: postgresql://petution_user:petution_pass@localhost:5432/petution_db
+      # Firebase web settings are baked into the app at build time.
+      # sync: false means Render asks for the value in the dashboard instead of storing it here.
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
