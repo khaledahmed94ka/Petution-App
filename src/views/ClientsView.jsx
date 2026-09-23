@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Plus, Filter, MessageCircle, Download, Upload } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/dataExportImport';
+import { phoneMatches } from '../utils/phone';
 import { ClientProfileModal } from '../components/modals/ClientProfileModal';
 
 export const ClientsView = () => {
@@ -15,7 +16,7 @@ export const ClientsView = () => {
 
   const filteredClients = clients.filter(c => {
     const matchesSearch = String(c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.phones?.some(p => p.phone?.includes(searchTerm));
+      c.phones?.some(p => phoneMatches(p.phone, searchTerm));
     const matchesTag = selectedTag ? c.tags?.includes(selectedTag) : true;
     return matchesSearch && matchesTag;
   });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Phone, MapPin, Tag, Calendar, MessageCircle, Dog, Cat, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { whatsappUrl } from '../../utils/phone';
 
 export const ClientProfileModal = ({ client, onClose }) => {
   const { pets, setActiveDrawer, setActiveModalItem } = useApp();
@@ -8,6 +9,7 @@ export const ClientProfileModal = ({ client, onClose }) => {
   if (!client) return null;
 
   const primaryPhone = client.phones?.find(p => p.isPrimary) || client.phones?.[0];
+  const whatsappLink = primaryPhone?.hasWhatsapp ? whatsappUrl(primaryPhone.phone) : null;
   const clientPets = pets.filter(p => client.pets?.includes(p.id) || p.owners?.includes(client.id));
 
   return (
@@ -32,9 +34,9 @@ export const ClientProfileModal = ({ client, onClose }) => {
             <div className="info-row">
               <Phone size={14} className="text-teal" />
               <span>{primaryPhone?.phone || 'No phone provided'}</span>
-              {primaryPhone?.hasWhatsapp && (
+              {whatsappLink && (
                 <a 
-                  href={`https://wa.me/${primaryPhone.phone.replace(/[^0-9]/g, '')}`} 
+                  href={whatsappLink} 
                   target="_blank" 
                   rel="noreferrer"
                   className="whatsapp-pill"

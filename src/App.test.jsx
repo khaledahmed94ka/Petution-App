@@ -103,3 +103,23 @@ describe('error boundary', () => {
     spy.mockRestore();
   });
 });
+
+describe('phone numbers and WhatsApp', () => {
+  it('saves a locally typed number in international form', async () => {
+    const { container } = await renderDemo();
+    openDrawer('addClient', null);
+    const panel = container.querySelector('.drawer-panel');
+    fireEvent.change(within(panel).getByPlaceholderText('Client full name'), { target: { value: 'Mona Adel' } });
+    fireEvent.change(within(panel).getByPlaceholderText('Enter phone number'), { target: { value: '010 0123 4567' } });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Create client' }));
+    expect(app.clients.find(c => c.name === 'Mona Adel').phones[0].phone).toBe('+201001234567');
+  });
+
+  it('opens a wa.me link without "+" from the reminders page', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    await renderDemo();
+    act(() => app.setActiveTab('reminders'));
+    fireEvent.click(screen.getAllByRole('button', { name: /WhatsApp/ })[0]);
+    expect(openSpy.mock.calls[0][0]).toMatch(/^https:\/\/wa\.me\/20\d+\?text=/);
+  });
+});

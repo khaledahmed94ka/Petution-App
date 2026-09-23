@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { normalizePhone } from '../../utils/phone';
 
 export const AddClientDrawer = () => {
   const { setActiveDrawer, addClient, pets } = useApp();
@@ -26,13 +27,18 @@ export const AddClientDrawer = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return alert('Please enter client owner name.');
+    // Saved in international form so WhatsApp links work (010… -> +2010…).
+    const savedPhones = phones
+      .map(p => ({ ...p, phone: normalizePhone(p.phone) }))
+      .filter(p => p.phone);
+    if (savedPhones.length && !savedPhones.some(p => p.isPrimary)) savedPhones[0].isPrimary = true;
     addClient({
       name,
       source,
       governorate,
       district,
       street,
-      phones,
+      phones: savedPhones,
       tags: ['New Client'],
       pets: selectedPets
     });
@@ -134,9 +140,8 @@ export const AddClientDrawer = () => {
                   placeholder="Enter phone number"
                   value={p.phone}
                   onChange={(e) => {
-                    const newPhones = [...phones];
-                    newPhones[idx].phone = e.target.value;
-                    setPhones(newPhones);
+                    const value = e.target.value;
+                    setPhones(prev => prev.map((item, i) => (i === idx ? { ...item, phone: value } : item)));
                   }}
                 />
                 {phones.length > 1 && (

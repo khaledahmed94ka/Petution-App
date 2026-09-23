@@ -17,6 +17,7 @@ import { syncToShopify } from '../services/shopifySync';
 import { COLLECTIONS, emptyCollections, sortCollection } from '../data/collections';
 import { DEMO_USER } from '../data/demoSeed';
 import { newId, todayLocal, slugify } from '../utils/ids';
+import { normalizePhone } from '../utils/phone';
 
 const AppContext = createContext();
 
@@ -94,7 +95,8 @@ const formatImportedClient = (c, now) => {
     governorate: c.governorate || c.Governorate || 'Cairo',
     district: c.district || c.District || '',
     street: c.street || c.Street || '',
-    phones: parseJsonList(c.phones, [{ phone, label: 'Primary', isPrimary: true }]),
+    phones: parseJsonList(c.phones, [{ phone, label: 'Primary', isPrimary: true }])
+      .map(p => ({ ...p, phone: normalizePhone(p.phone) })),
     tags: parseJsonList(c.tags, ['Imported']),
     pets: [],
     createdAt: c.createdAt || c.CreatedDate || todayLocal(),
