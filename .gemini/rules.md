@@ -7,7 +7,7 @@
 
 ## 🏗️ Project Overview
 
-**Petution** is a veterinary clinic management SPA (Single Page Application) built with React 18 + Vite 5. Accounts use Firebase Authentication, and each account's clinic data is stored in Firestore under `users/{uid}/` (protected by `firestore.rules`). A no-account demo mode keeps sample data in this browser's localStorage only.
+**Petution** is a veterinary clinic management SPA (Single Page Application) built with React 18 + Vite 5. Accounts use Firebase Authentication. Each clinic's data is stored in Firestore under `clinics/{clinicId}/`; people join clinics through invitations and get a role (Owner, Vet, Receptionist, Admin) that `firestore.rules` enforces. A no-account demo mode keeps sample data in this browser's localStorage only.
 
 - **GitHub:** https://github.com/khaledahmed94ka/Petution-App
 - **Live (GitHub Pages):** https://khaledahmed94ka.github.io/Petution-App/
@@ -26,7 +26,8 @@
 | Icons | `lucide-react` | All icons come from here |
 | State | React Context (`AppContext.jsx`) | Single provider, all state centralized |
 | Auth | Firebase Authentication | Google + Email/Password; `onAuthStateChanged` is the only source of truth |
-| Persistence | Firestore (`users/{uid}/{collection}`) | Demo mode uses localStorage via `demoStore.js` |
+| Persistence | Firestore (`clinics/{clinicId}/{collection}`) | Demo mode uses localStorage via `demoStore.js` |
+| Roles | `src/data/permissions.js` + `firestore.rules` | Keep both in sync; UI hides, rules enforce |
 | Tests | Vitest + Testing Library, Playwright, Firebase emulators | `npm test`, `npm run test:e2e`, `npm run test:emulator` |
 | Deployment | GitHub Pages (`gh-pages`) + Render.com (`render.yaml`) | |
 | Node | 20.11.0 (pinned in `.node-version`) | |
@@ -104,7 +105,8 @@ src/
 
 Clinic data is never kept in component state or written to localStorage directly. It flows through a store:
 
-- `src/services/firestoreDb.js` — signed-in accounts (Firestore, live `onSnapshot` listeners)
+- `src/services/firestoreDb.js` — one clinic of a signed-in account (Firestore, live `onSnapshot` listeners; only collections the role may read)
+- `src/services/clinicDirectory.js` — the person's clinics, creating/deleting clinics, invitations, moving old `users/{uid}` data
 - `src/services/demoStore.js` — demo mode (localStorage, same interface)
 
 `AppContext.jsx` subscribes to the store and mirrors each collection into `data`. Mutations call `createRecord` / `updateRecord` / `removeRecord` / `saveMany`, and the screen updates from the store's next snapshot.
@@ -115,9 +117,12 @@ Clinic data is never kept in component state or written to localStorage directly
 4. Backups (`SettingsView`) and restore (`importFullBackup`) pick up every collection in `COLLECTIONS` automatically
 5. Add a test in `src/context/AppContext.test.jsx` that the new data survives a reload
 
-### Stored Collections (Firestore `users/{uid}/…`)
+### Stored Collections (Firestore `clinics/{clinicId}/…`)
 
-`clients`, `pets`, `visits`, `products`, `invoices`, `expenses`, `vaccines`, `soapNotes`, `reminders`, `team`, `invitations`, `stockLogs`, `notifications`, `workspaces`, `settings` (single doc `global`).
+`clients`, `pets`, `visits`, `products`, `invoices`, `expenses`, `vaccines`, `soapNotes`, `reminders`, `stockLogs`, `notifications`, `settings` (single doc `global`).
+In the app, `team` maps to `clinics/{clinicId}/members/{uid}` and `invitations` to top-level `invites/`. `workspaces` are the person's memberships.
+
+When adding a mutation, check the role with `allowed('<permission>', '<action>')` in `AppContext.jsx`, add the matching rule in `firestore.rules`, and a case in `tests/rules/firestore.rules.test.js`.
 
 Older versions stored these under `petution_*` localStorage keys. They are no longer read, except by `legacyLocalData.js`, which offers to upload real records to the account.
 
