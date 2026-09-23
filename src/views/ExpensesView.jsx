@@ -21,7 +21,7 @@ export const ExpensesView = () => {
   ];
 
   const filteredExpenses = expenses.filter(exp => {
-    const matchesSearch = exp.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = String(exp.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (exp.vendor && exp.vendor.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === 'All' || exp.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -147,7 +147,7 @@ export const ExpensesView = () => {
                   <td>
                     <span className="badge badge-teal">{exp.category}</span>
                   </td>
-                  <td className="font-bold text-rose">{exp.amount.toLocaleString()} EGP</td>
+                  <td className="font-bold text-rose">{(Number(exp.amount) || 0).toLocaleString()} EGP</td>
                   <td>
                     <div className="text-xs font-semibold">{exp.date}</div>
                     <div className="text-xs text-muted">{exp.paymentMethod}</div>

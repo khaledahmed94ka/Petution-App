@@ -9,7 +9,7 @@ export const ProductsView = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = String(p.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTab = activeTab === 'products' ? p.type === 'product' : p.type === 'service';
     return matchesSearch && matchesTab;
   });

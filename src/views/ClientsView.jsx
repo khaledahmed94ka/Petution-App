@@ -14,7 +14,7 @@ export const ClientsView = () => {
   const allTags = Array.from(new Set(clients.flatMap(c => c.tags || [])));
 
   const filteredClients = clients.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = String(c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.phones?.some(p => p.phone?.includes(searchTerm));
     const matchesTag = selectedTag ? c.tags?.includes(selectedTag) : true;
     return matchesSearch && matchesTag;

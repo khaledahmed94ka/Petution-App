@@ -445,6 +445,7 @@ export const AppProvider = ({ children }) => {
       email: client.email || '',
       phone: client.phones?.[0]?.phone || ''
     });
+    return client;
   };
 
   const addPet = (petData) => createRecord('pets', 'pet', { ...petData, createdAt: todayLocal() });

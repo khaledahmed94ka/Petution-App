@@ -30,9 +30,10 @@ import { PetPassportDrawer } from './components/drawers/PetPassportDrawer';
 import { AddVaccineDrawer } from './components/drawers/AddVaccineDrawer';
 import { SOAPNoteDrawer } from './components/drawers/SOAPNoteDrawer';
 import { StatusScreen } from './components/StatusScreen';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { X, LogOut, ShieldCheck } from 'lucide-react';
 
-const MainApp = () => {
+export const MainApp = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const {
@@ -104,7 +105,9 @@ const MainApp = () => {
       <div className="main-content" style={isEmbedded ? { marginLeft: 0, width: '100%' } : {}}>
         <Header onMenuToggle={() => setIsMobileOpen(prev => !prev)} />
         <div className="page-wrapper">
-          {renderView()}
+          <ErrorBoundary key={activeTab} onReset={activeTab === 'dashboard' ? null : () => setActiveTab('dashboard')}>
+            {renderView()}
+          </ErrorBoundary>
         </div>
       </div>
 
@@ -115,6 +118,7 @@ const MainApp = () => {
       />
 
       {/* Render Active Slide-Over Drawers */}
+      <ErrorBoundary key={activeDrawer || 'none'} onReset={() => setActiveDrawer(null)} resetLabel="Close">
       {activeDrawer === 'addClient' && <AddClientDrawer />}
       {activeDrawer === 'addPet' && <AddPetDrawer />}
       {activeDrawer === 'addVisit' && <AddVisitDrawer />}
@@ -128,6 +132,7 @@ const MainApp = () => {
       {activeDrawer === 'petPassport' && <PetPassportDrawer petId={activeModalItem} />}
       {activeDrawer === 'addVaccine' && <AddVaccineDrawer petId={activeModalItem} />}
       {activeDrawer === 'soapNote' && <SOAPNoteDrawer visitId={activeModalItem} />}
+      </ErrorBoundary>
 
       {/* User Profile Modal */}
       {activeDrawer === 'profile' && (

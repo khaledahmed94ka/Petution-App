@@ -17,8 +17,9 @@ export const TeamView = () => {
   const [roleFilter, setRoleFilter] = useState('all');
 
   const filteredMembers = team.filter(m => {
-    const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'all' || m.role.toLowerCase() === roleFilter.toLowerCase();
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = String(m.name || '').toLowerCase().includes(term) || String(m.email || '').toLowerCase().includes(term);
+    const matchesRole = roleFilter === 'all' || String(m.role || '').toLowerCase() === roleFilter.toLowerCase();
     return matchesSearch && matchesRole;
   });
 
@@ -119,7 +120,7 @@ export const TeamView = () => {
                   <tr key={member.id}>
                     <td>
                       <div className="member-cell">
-                        <div className="avatar-circle">{member.name.split(' ').map(n=>n[0]).join('')}</div>
+                        <div className="avatar-circle">{String(member.name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2)}</div>
                         <div>
                           <div className="font-semibold">{member.name}</div>
                           <div className="text-muted text-xs">{member.email}</div>

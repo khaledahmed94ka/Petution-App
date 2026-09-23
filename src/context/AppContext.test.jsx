@@ -1,0 +1,142 @@
+import React from 'react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, act, waitFor } from '@testing-library/react';
+import { AppProvider, useApp } from './AppContext';
+
+let app;
+const Probe = () => {
+  app = useApp();
+  return null;
+};
+
+// Each mount is a fresh page load: nothing survives except what was saved.
+const mount = () => render(<AppProvider><Probe /></AppProvider>);
+
+const openDemo = async () => {
+  await act(() => app.startDemo());
+  await waitFor(() => expect(app.dataStatus).toBe('ready'));
+};
+
+const reload = async (view) => {
+  view.unmount();
+  app = undefined;
+  const next = mount();
+  await waitFor(() => expect(app.dataStatus).toBe('ready'));
+  return next;
+};
+
+describe('AppProvider session', () => {
+  it('starts signed out, even when an old version left a "logged in" flag behind', async () => {
+    localStorage.setItem('petution_user', JSON.stringify({ id: 'usr-1', isAuthenticated: true }));
+    mount();
+    await waitFor(() => expect(app.authStatus).toBe('ready'));
+    expect(app.user).toBeNull();
+    expect(app.clients).toEqual([]);
+    expect(localStorage.getItem('petution_user')).toBeNull();
+  });
+
+  it('opens the demo without credentials', async () => {
+    mount();
+    await openDemo();
+    expect(app.isDemo).toBe(true);
+    expect(app.user.email).toBe('demo@petution.app');
+    expect(app.clients.length).toBeGreaterThan(0);
+  });
+
+  it('signing out clears clinic data from memory and from the browser', async () => {
+    const view = mount();
+    await openDemo();
+    act(() => app.addClient({ name: 'Private Person', phones: [] }));
+    await act(() => app.logout());
+    expect(app.user).toBeNull();
+    expect(app.clients).toEqual([]);
+    expect(Object.keys(localStorage)).toEqual([]);
+
+    view.unmount();
+    mount();
+    await waitFor(() => expect(app.authStatus).toBe('ready'));
+    expect(app.user).toBeNull();
+    expect(app.clients).toEqual([]);
+  });
+});
+
+describe('AppProvider saving', () => {
+  it('keeps a visit status change after a reload (used to be lost)', async () => {
+    const view = mount();
+    await openDemo();
+    act(() => app.updateVisit('vis-1', { state: 'completed', doctorName: 'Dr. B' }));
+    expect(app.visits.find(v => v.id === 'vis-1').state).toBe('completed');
+
+    await reload(view);
+    const visit = app.visits.find(v => v.id === 'vis-1');
+    expect(visit.state).toBe('completed');
+    expect(visit.doctorName).toBe('Dr. B');
+    expect(visit.reason).toBe('Annual Checkup');
+  });
+
+  it('keeps new records, imports and notification reads after a reload', async () => {
+    const view = mount();
+    await openDemo();
+    let created;
+    act(() => { created = app.addClient({ name: 'Mona Adel', phones: [] }); });
+    act(() => { app.importPetsData([{ PetName: 'Imported Cat', Species: 'Cat', Vaccinated: 'Yes' }]); });
+    act(() => app.markAllNotificationsRead());
+
+    await reload(view);
+    const client = app.clients.find(c => c.id === created.id);
+    expect(client.name).toBe('Mona Adel');
+    expect(created.id).toMatch(/^cli-/);
+    expect(app.clients[0].id).toBe(created.id);
+    const pet = app.pets.find(p => p.name === 'Imported Cat');
+    expect(pet).toMatchObject({ species: 'cat', vaccinated: true });
+    expect(app.notifications.every(n => n.read)).toBe(true);
+  });
+
+  it('restoring a backup merges into the clinic instead of replacing it', async () => {
+    mount();
+    await openDemo();
+    const before = app.clients.length;
+    act(() => {
+      app.importFullBackup({
+        clients: [{ id: 'cli-1', name: 'Ahmed Hassan (restored)' }, { id: 'cli-from-backup', name: 'From Backup' }],
+        vaccines: [{ id: 'vac-restored', petId: 'pet-1', vaccineName: 'Restored dose' }],
+        settings: { id: 'global', orgName: 'Restored Clinic', activeWorkspaceId: 'ws-missing' }
+      });
+    });
+    expect(app.clients.length).toBe(before + 1);
+    expect(app.clients.find(c => c.id === 'cli-1').name).toBe('Ahmed Hassan (restored)');
+    expect(app.clients.some(c => c.id === 'cli-2')).toBe(true);
+    expect(app.vaccines.some(v => v.id === 'vac-restored')).toBe(true);
+    expect(app.settings.orgName).toBe('Restored Clinic');
+    expect(app.settings.activeWorkspaceId).toBe('ws-demo');
+  });
+
+  it('saving a SOAP note twice for one visit updates it instead of duplicating', async () => {
+    mount();
+    await openDemo();
+    const count = app.soapNotes.length;
+    act(() => app.saveSOAPNote({ visitId: 'vis-9', petId: 'pet-1', assessment: 'First' }));
+    act(() => app.saveSOAPNote({ visitId: 'vis-9', petId: 'pet-1', assessment: 'Second' }));
+    const notes = app.soapNotes.filter(s => s.visitId === 'vis-9');
+    expect(app.soapNotes.length).toBe(count + 1);
+    expect(notes).toHaveLength(1);
+    expect(notes[0].assessment).toBe('Second');
+  });
+
+  it('never sends demo records to Shopify', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    mount();
+    await openDemo();
+    act(() => app.setSettings({ shopifyShop: 'my-store.myshopify.com', shopifySyncEnabled: true }));
+    act(() => app.addClient({ name: 'Demo Client', phones: [] }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('lists only Owner/Vet team members (and the signed-in user) as doctors', async () => {
+    mount();
+    await openDemo();
+    act(() => app.inviteMember({ name: 'Dr. New Vet', email: 'v@x.com', role: 'Vet' }));
+    act(() => app.inviteMember({ name: 'Front Desk', email: 'f@x.com', role: 'Receptionist' }));
+    expect(app.doctorNames).toEqual(['Demo Vet', 'Dr. New Vet']);
+  });
+});

@@ -4,3 +4,6 @@ dist/
 *.local
 .env
 *-debug.log
+dist-e2e*/
+test-results/
+playwright-report/

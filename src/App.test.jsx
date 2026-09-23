@@ -1,0 +1,105 @@
+import React from 'react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, act, waitFor, within, fireEvent } from '@testing-library/react';
+import App, { MainApp } from './App';
+import { AppProvider, useApp } from './context/AppContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+let app;
+const Probe = () => {
+  app = useApp();
+  return null;
+};
+
+const renderDemo = async () => {
+  const view = render(<AppProvider><MainApp /><Probe /></AppProvider>);
+  await act(() => app.startDemo());
+  await waitFor(() => expect(app.dataStatus).toBe('ready'));
+  return view;
+};
+
+const openDrawer = (drawer, item) => act(() => {
+  app.setActiveModalItem(item);
+  app.setActiveDrawer(drawer);
+});
+
+describe('login screen', () => {
+  it('a fresh browser gets the login form, not the dashboard', async () => {
+    const { container } = render(<App />);
+    expect(await screen.findByText('Sign In to Workspace')).toBeTruthy();
+    expect(container.querySelector('.sidebar')).toBeNull();
+  });
+
+  it('explains when account sign-in is not configured and disables it', async () => {
+    render(<App />);
+    expect(await screen.findByText(/Account sign-in isn't configured/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Sign In to Workspace/ }).disabled).toBe(true);
+    expect(screen.queryByText(/demo123/)).toBeNull();
+  });
+});
+
+describe('SOAP note', () => {
+  it('a new note has no prescription and no vitals until the vet enters them', async () => {
+    const { container } = await renderDemo();
+    let visit;
+    act(() => { visit = app.addVisit({ petId: 'pet-2', clientId: 'cli-2', doctorName: 'Dr. Sarah Mahmoud', date: '2026-09-01', state: 'in-progress' }); });
+    openDrawer('soapNote', visit.id);
+
+    const vitals = [...container.querySelectorAll('.vitals-grid input')].map(input => input.value);
+    expect(vitals).toEqual(['', '', '', '']);
+    expect(container.querySelectorAll('.rx-item-row')).toHaveLength(0);
+    expect(screen.getByText(/No medications prescribed/)).toBeTruthy();
+    expect(container.querySelector('.sig-line-doctor').textContent).toBe('Dr. Sarah Mahmoud');
+
+    fireEvent.click(screen.getByRole('button', { name: /Save SOAP Record/ }));
+    const saved = app.soapNotes.find(s => s.visitId === visit.id);
+    expect(saved).toMatchObject({ tempC: null, weightKg: null, heartRateBpm: null, respiratoryRateBpm: null, rxMedications: [] });
+  });
+
+  it('an unknown visit shows "not found" instead of another patient\'s visit', async () => {
+    await renderDemo();
+    openDrawer('soapNote', 'vis-does-not-exist');
+    expect(screen.getByText('Visit not found')).toBeTruthy();
+    expect(screen.queryByText(/Clinical consultation notes for/)).toBeNull();
+  });
+});
+
+describe('pet passport and vaccines', () => {
+  it('an unknown pet shows "not found" instead of the first pet', async () => {
+    const { container } = await renderDemo();
+    openDrawer('petPassport', 'pet-does-not-exist');
+    const drawer = container.querySelector('.drawer-panel');
+    expect(within(drawer).getByText('Patient not found')).toBeTruthy();
+    expect(within(drawer).queryByText('Milo')).toBeNull();
+  });
+
+  it('recording a vaccine from a passport uses that pet and the signed-in vet', async () => {
+    const { container } = await renderDemo();
+    openDrawer('petPassport', 'pet-2');
+    fireEvent.click(screen.getByRole('button', { name: /Record Vaccine Shot/ }));
+
+    const panel = container.querySelector('.drawer-panel');
+    const [petSelect, vaccineSelect] = panel.querySelectorAll('select');
+    expect(petSelect.value).toBe('pet-2');
+    expect(within(panel).getByDisplayValue('Demo Vet')).toBeTruthy();
+
+    fireEvent.change(vaccineSelect, { target: { value: 'Other' } });
+    fireEvent.change(within(panel).getByPlaceholderText('Vaccine name'), { target: { value: 'Leptospirosis booster' } });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Log Vaccine Dose' }));
+
+    expect(app.vaccines.find(v => v.vaccineName === 'Leptospirosis booster')).toMatchObject({ petId: 'pet-2', vetName: 'Demo Vet' });
+    expect(app.activeDrawer).toBe('petPassport');
+    expect(app.activeModalItem).toBe('pet-2');
+  });
+});
+
+describe('error boundary', () => {
+  it('shows a message instead of a blank app when a page crashes', () => {
+    const Broken = () => { throw new Error('bad record'); };
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<ErrorBoundary onReset={() => {}}><Broken /></ErrorBoundary>);
+    expect(screen.getByText('Something went wrong on this page')).toBeTruthy();
+    expect(screen.getByText('bad record')).toBeTruthy();
+    spy.mockRestore();
+  });
+});

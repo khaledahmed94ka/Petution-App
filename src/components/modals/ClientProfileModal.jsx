@@ -16,7 +16,7 @@ export const ClientProfileModal = ({ client, onClose }) => {
         {/* Header */}
         <div className="modal-header">
           <div className="flex items-center gap-sm">
-            <div className="avatar-badge">{client.name.charAt(0)}</div>
+            <div className="avatar-badge">{String(client.name || '?').charAt(0)}</div>
             <div>
               <h4 style={{ margin: 0 }}>{client.name}</h4>
               <span className="text-muted text-xs">Client ID: {client.id} • Registered {client.createdAt}</span>
