@@ -1,23 +1,32 @@
 import React from 'react';
-import { Bell, CheckCheck, Menu } from 'lucide-react';
+import { Bell, CheckCheck, Menu, AlertTriangle, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const Header = ({ onMenuToggle }) => {
   const { 
     settings, 
     notifications, 
-    setNotifications, 
+    markAllNotificationsRead, 
     showNotifications, 
-    setShowNotifications 
+    setShowNotifications,
+    isDemo,
+    syncError,
+    dismissSyncError
   } = useApp();
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
   return (
+    <>
+    {syncError && (
+      <div className="sync-error-banner" role="alert">
+        <AlertTriangle size={16} />
+        <span>{syncError}</span>
+        <button className="icon-btn" title="Dismiss" onClick={dismissSyncError}>
+          <X size={16} />
+        </button>
+      </div>
+    )}
     <header className="top-header">
       <div className="header-left">
         <button 
@@ -32,6 +41,7 @@ export const Header = ({ onMenuToggle }) => {
           <span className="text-muted">Petution</span>
           <span style={{ color: 'var(--text-light)' }}>/</span>
           <span className="font-semibold">{settings.orgName}</span>
+          {isDemo && <span className="demo-badge" title="Demo data stays in this browser and is cleared when you exit">Demo</span>}
         </div>
       </div>
 
@@ -52,7 +62,7 @@ export const Header = ({ onMenuToggle }) => {
               <div className="notif-header">
                 <span className="font-semibold text-sm">Notifications</span>
                 {unreadCount > 0 && (
-                  <button className="text-xs text-teal font-semibold flex items-center gap-xs" onClick={markAllRead}>
+                  <button className="text-xs text-teal font-semibold flex items-center gap-xs" onClick={markAllNotificationsRead}>
                     <CheckCheck size={14} /> Mark all read
                   </button>
                 )}
@@ -125,6 +135,32 @@ export const Header = ({ onMenuToggle }) => {
           margin-top: 2px;
         }
 
+        .sync-error-banner {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 12px 6px 16px;
+          background: #ffe4e6;
+          color: #9f1239;
+          font-size: 0.82rem;
+          border-bottom: 1px solid #fecdd3;
+        }
+
+        .sync-error-banner span { flex: 1; }
+
+        .sync-error-banner .icon-btn { min-height: 32px; color: inherit; }
+
+        .demo-badge {
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          background: #fef3c7;
+          color: #92400e;
+          padding: 2px 8px;
+          border-radius: 9999px;
+        }
+
         @media (max-width: 1023px) {
           .mobile-menu-btn {
             display: flex !important;
@@ -138,6 +174,7 @@ export const Header = ({ onMenuToggle }) => {
         }
       `}</style>
     </header>
+    </>
   );
 };
 

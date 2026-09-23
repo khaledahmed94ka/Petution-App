@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Download, Upload, Database, Trash2, AlertTriangle } from 'lucide-react';
+import { Camera, Download, Upload, Database, Trash2, AlertTriangle, HardDrive } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportSystemBackupJSON } from '../utils/dataExportImport';
+import { COLLECTIONS } from '../data/collections';
+import { isValidShopDomain } from '../services/shopifySync';
 
 export const SettingsView = () => {
-  const { settings, setSettings, clients, pets, visits, products, invoices, importFullBackup, deleteWorkspace, activeWorkspaceId } = useApp();
+  const app = useApp();
+  const {
+    settings, setSettings, clients, pets, visits, products, invoices, expenses, vaccines, soapNotes,
+    importFullBackup, deleteWorkspace, activeWorkspaceId, isDemo,
+    legacyData, importLegacyLocalData, discardLegacyLocalData
+  } = app;
   const [formData, setFormData] = useState({ ...settings });
   const [activeTab, setActiveTab] = useState('Organization');
+  const [shopForm, setShopForm] = useState({ shopifyShop: settings.shopifyShop, shopifySyncEnabled: settings.shopifySyncEnabled });
+  const [isUploadingLegacy, setIsUploadingLegacy] = useState(false);
 
   useEffect(() => {
     setFormData({ ...settings });
+    setShopForm({ shopifyShop: settings.shopifyShop, shopifySyncEnabled: settings.shopifySyncEnabled });
   }, [settings]);
 
   const tabs = [
@@ -24,34 +34,56 @@ export const SettingsView = () => {
   ];
 
   const handleFullExportJSON = () => {
-    const fullBackup = {
-      version: '1.0',
-      exportedAt: new Date().toISOString(),
-      settings,
-      clients,
-      pets,
-      visits,
-      products,
-      invoices
-    };
+    const fullBackup = { version: '2.0', exportedAt: new Date().toISOString(), settings };
+    COLLECTIONS.filter(name => name !== 'settings').forEach(name => {
+      fullBackup[name] = app[name] || [];
+    });
     exportSystemBackupJSON(fullBackup, `petution_full_backup_${new Date().toISOString().split('T')[0]}.json`);
   };
 
   const handleFullRestoreJSON = (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const jsonData = JSON.parse(event.target.result);
-        importFullBackup(jsonData);
+        const message = `Restore "${file.name}"?\n\nRecords in the backup are added to this clinic. Records with the same ID are replaced by the backup's version. Nothing else is deleted.`;
+        if (confirm(message)) importFullBackup(jsonData);
       } catch (err) {
         alert(`Failed to restore backup: ${err.message}`);
       }
     };
     reader.readAsText(file);
   };
+
+  const handleShopifySave = (e) => {
+    e.preventDefault();
+    const shop = shopForm.shopifyShop.trim().toLowerCase();
+    if (shopForm.shopifySyncEnabled && !isValidShopDomain(shop)) {
+      alert('Enter your store address in the form your-store.myshopify.com');
+      return;
+    }
+    setSettings({ shopifyShop: shop, shopifySyncEnabled: shopForm.shopifySyncEnabled });
+    alert(shopForm.shopifySyncEnabled ? 'Shopify sync is on for this clinic.' : 'Shopify sync is off.');
+  };
+
+  const handleLegacyUpload = async () => {
+    setIsUploadingLegacy(true);
+    const ok = await importLegacyLocalData();
+    setIsUploadingLegacy(false);
+    if (ok) alert('Done. The records are now saved in your account and removed from this browser.');
+  };
+
+  const handleLegacyDiscard = () => {
+    if (confirm('Delete these records from this browser? They have not been uploaded to your account.')) {
+      discardLegacyLocalData();
+    }
+  };
+
+  const shopifyConnected = settings.shopifySyncEnabled && isValidShopDomain(settings.shopifyShop);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -93,7 +125,7 @@ export const SettingsView = () => {
           <form onSubmit={handleSave} className="settings-form">
             <div className="avatar-upload-row">
               <div className="profile-avatar-circle">
-                <span>{formData.orgName.charAt(0)}</span>
+                <span>{(formData.orgName || '?').charAt(0)}</span>
                 <div className="camera-overlay">
                   <Camera size={14} />
                 </div>
@@ -191,10 +223,31 @@ export const SettingsView = () => {
           </div>
 
           <div className="margin-top-md">
+            {!isDemo && legacyData.count > 0 && (
+              <div className="card info-card legacy-card margin-bottom-md">
+                <h5 className="font-semibold flex items-center gap-xs">
+                  <HardDrive size={16} /> Records saved only in this browser ({legacyData.count})
+                </h5>
+                <p className="text-xs text-muted margin-top-xs">
+                  An earlier version of Petution kept records in this browser instead of your account:{' '}
+                  {Object.entries(legacyData.collections).map(([name, list]) => `${list.length} ${name}`).join(', ')}.
+                  Upload them to keep them, or delete them. On a shared computer they may belong to someone else.
+                </p>
+                <div className="margin-top-sm flex gap-xs" style={{ flexWrap: 'wrap' }}>
+                  <button className="btn-primary" onClick={handleLegacyUpload} disabled={isUploadingLegacy}>
+                    <Upload size={16} /> {isUploadingLegacy ? 'Uploading…' : 'Upload to My Account'}
+                  </button>
+                  <button className="btn-secondary" onClick={handleLegacyDiscard} disabled={isUploadingLegacy}>
+                    <Trash2 size={16} /> Delete From This Browser
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="card info-card margin-bottom-md">
               <h5 className="font-semibold">Full System Backup (.JSON)</h5>
               <p className="text-xs text-muted margin-top-xs">
-                Downloads all Clients ({clients.length}), Pets ({pets.length}), Visits ({visits.length}), Products/Services ({products.length}), Invoices ({invoices.length}), and Clinic Settings into a single portable backup file.
+                Downloads everything in this clinic into one file: Clients ({clients.length}), Pets ({pets.length}), Visits ({visits.length}), Products/Services ({products.length}), Invoices ({invoices.length}), Expenses ({expenses.length}), Vaccines ({vaccines.length}), SOAP Notes ({soapNotes.length}), reminders, team, stock logs, and clinic settings.
               </p>
               <div className="margin-top-sm">
                 <button className="btn-primary" onClick={handleFullExportJSON}>
@@ -206,7 +259,7 @@ export const SettingsView = () => {
             <div className="card info-card">
               <h5 className="font-semibold">Restore / Import System Backup (.JSON)</h5>
               <p className="text-xs text-muted margin-top-xs">
-                Upload a previously exported Petution `.json` backup file to restore all clinic data.
+                Upload a Petution `.json` backup. Its records are merged into this clinic; records with the same ID are replaced, and nothing else is deleted.
               </p>
               <div className="margin-top-sm" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <label className="btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -236,12 +289,48 @@ export const SettingsView = () => {
                     Sync your Shopify store data (customers, products, orders) to Petution in real-time and access your Dashboard directly inside Shopify.
                   </p>
                 </div>
-                <span className="badge badge-success" style={{ background: '#dcfce7', color: '#166534', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '500' }}>Configured</span>
+                <span className="badge" style={shopifyConnected
+                  ? { background: '#dcfce7', color: '#166534' }
+                  : { background: '#f1f5f9', color: 'var(--text-muted)' }}>
+                  {shopifyConnected ? 'On' : 'Off'}
+                </span>
               </div>
+
+              {isDemo ? (
+                <p className="text-xs text-muted margin-top-md">Shopify sync is not available in the demo.</p>
+              ) : (
+                <form onSubmit={handleShopifySave} className="settings-form margin-top-md">
+                  <div className="form-group">
+                    <label>Your Shopify store address</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="your-store.myshopify.com"
+                      value={shopForm.shopifyShop}
+                      onChange={(e) => setShopForm({ ...shopForm, shopifyShop: e.target.value })}
+                    />
+                  </div>
+                  <label className="flex items-center gap-xs text-sm" style={{ cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={shopForm.shopifySyncEnabled}
+                      onChange={(e) => setShopForm({ ...shopForm, shopifySyncEnabled: e.target.checked })}
+                    />
+                    Send new clients and products from this clinic to this Shopify store
+                  </label>
+                  <p className="text-xs text-muted">
+                    Only this clinic's records are sent, and only to the store above. Requests carry your sign-in token so the Petution sync service can check who sent them.
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button type="submit" className="btn-primary">Save Integration</button>
+                  </div>
+                </form>
+              )}
+
               <div className="margin-top-md" style={{ padding: '16px', background: 'var(--surface-bg)', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
                 <h6 className="font-semibold margin-bottom-sm text-primary">How it works:</h6>
                 <ol className="text-sm text-muted" style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px', listStyleType: 'decimal' }}>
-                  <li>Your custom Shopify app <strong>Petution Reminder</strong> is already installed on your store.</li>
+                  <li>Install the custom Shopify app <strong>Petution Reminder</strong> on your store.</li>
                   <li>It runs silently in the background, listening to real-time Webhooks from Shopify.</li>
                   <li>When a new Customer, Order, or Product is created in Shopify, the App instantly pushes that data into your Petution database.</li>
                   <li>You can use the Petution Reminders and Dashboard natively inside your Shopify Admin by clicking on the app in your Shopify sidebar.</li>
@@ -305,6 +394,10 @@ export const SettingsView = () => {
         }
         .info-card {
           padding: 16px;
+        }
+        .legacy-card {
+          border-color: #fde68a;
+          background: #fffbeb;
         }
 
         @media (min-width: 640px) {

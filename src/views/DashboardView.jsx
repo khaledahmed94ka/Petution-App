@@ -10,8 +10,11 @@ import {
 import { useApp } from '../context/AppContext';
 
 export const DashboardView = () => {
-  const { clients, pets, visits, invoices, products, expenses = [], settings, team, setActiveDrawer, setActiveTab } = useApp();
+  const { user, clients, pets, visits, invoices, products, expenses = [], settings, team, setActiveDrawer, setActiveTab } = useApp();
   const [showOnboarding, setShowOnboarding] = React.useState(true);
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const totalRevenue = invoices
     .filter(i => i.status === 'paid')
@@ -99,12 +102,12 @@ export const DashboardView = () => {
       {/* Greeting Header */}
       <div className="greeting-header flex justify-between items-center">
         <div>
-          <h2>Good evening, Khaled ElGendy <span className="hand-wave">👋</span> <span className="owner-badge">Owner</span></h2>
+          <h2>{greeting}, {user?.name} <span className="hand-wave">👋</span> <span className="owner-badge">{user?.role}</span></h2>
           <p className="text-muted">Here's your clinic pulse for today.</p>
         </div>
         {!showOnboarding && (
           <button className="btn-secondary text-xs" onClick={() => setShowOnboarding(true)}>
-            🚀 Show Getting Started ({completedCount}/8)
+            🚀 Show Getting Started ({completedCount}/{onboardingTasks.length})
           </button>
         )}
       </div>

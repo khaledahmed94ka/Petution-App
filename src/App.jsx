@@ -15,7 +15,6 @@ import { ProductsView } from './views/ProductsView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { RemindersView } from './views/RemindersView';
 import { TeamView } from './views/TeamView';
-import { BillingView } from './views/BillingView'; // Deferred for later
 import { SettingsView } from './views/SettingsView';
 import { RegisterClinicView } from './views/RegisterClinicView';
 
@@ -30,15 +29,41 @@ import { InviteMemberDrawer } from './components/drawers/InviteMemberDrawer';
 import { PetPassportDrawer } from './components/drawers/PetPassportDrawer';
 import { AddVaccineDrawer } from './components/drawers/AddVaccineDrawer';
 import { SOAPNoteDrawer } from './components/drawers/SOAPNoteDrawer';
+import { StatusScreen } from './components/StatusScreen';
 import { X, LogOut, ShieldCheck } from 'lucide-react';
 
 const MainApp = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { user, logout, activeTab, setActiveTab, activeDrawer, setActiveDrawer, activeModalItem, isEmbedded } = useApp();
+  const {
+    user, authStatus, dataStatus, dataError, isDemo, logout,
+    activeTab, setActiveTab, activeDrawer, setActiveDrawer, activeModalItem, isEmbedded
+  } = useApp();
 
-  if (!user?.isAuthenticated) {
+  if (authStatus === 'loading') {
+    return <StatusScreen busy title="Checking your sign-in…" />;
+  }
+
+  if (!user) {
     return <LoginView />;
+  }
+
+  if (dataStatus === 'error') {
+    return (
+      <StatusScreen
+        title="Couldn't load your clinic data"
+        message={dataError?.code === 'permission-denied'
+          ? 'The server refused access to this account\'s records. Sign out and sign in again.'
+          : `Check your internet connection and try again. (${dataError?.message || 'Unknown error'})`}
+      >
+        <button className="btn-secondary" onClick={() => window.location.reload()}>Try again</button>
+        <button className="btn-primary" onClick={logout}>Sign out</button>
+      </StatusScreen>
+    );
+  }
+
+  if (dataStatus !== 'ready') {
+    return <StatusScreen busy title="Loading your clinic…" />;
   }
 
   if (isRegistering) {
@@ -120,21 +145,21 @@ const MainApp = () => {
             <div className="drawer-body">
               <div className="form-group">
                 <label>Full Name</label>
-                <input type="text" className="form-control font-semibold" value={user?.name || 'Khaled ElGendy'} readOnly />
+                <input type="text" className="form-control font-semibold" value={user.name} readOnly />
               </div>
               <div className="form-group">
                 <label>Email Address</label>
-                <input type="email" className="form-control" value={user?.email || 'khaledahmed94.ka@gmail.com'} readOnly />
+                <input type="email" className="form-control" value={user.email} readOnly />
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>Workspace Role</label>
-                  <input type="text" className="form-control" value={user?.role || 'Owner'} readOnly />
+                  <input type="text" className="form-control" value={user.role} readOnly />
                 </div>
                 <div className="form-group">
                   <label>Authentication Method</label>
                   <div className="form-control flex items-center gap-xs font-semibold text-xs text-teal">
-                    <ShieldCheck size={14} /> {user?.provider ? user.provider.toUpperCase() : 'EMAIL'}
+                    <ShieldCheck size={14} /> {isDemo ? 'DEMO (THIS BROWSER ONLY)' : user.provider.toUpperCase()}
                   </div>
                 </div>
               </div>
@@ -157,7 +182,7 @@ const MainApp = () => {
                     logout();
                   }}
                 >
-                  <LogOut size={16} /> Sign Out of Petution
+                  <LogOut size={16} /> {isDemo ? 'Exit Demo (Clears Demo Data)' : 'Sign Out of Petution'}
                 </button>
               </div>
             </div>

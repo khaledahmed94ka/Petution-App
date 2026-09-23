@@ -3,7 +3,7 @@ import { X, Calendar, Clock, User, FileText, CheckCircle2, AlertCircle } from 'l
 import { useApp } from '../../context/AppContext';
 
 export const ManageVisitModal = ({ visit, onClose }) => {
-  const { pets, visits, setVisits, setActiveDrawer, setActiveModalItem } = useApp();
+  const { pets, updateVisit, setActiveDrawer, setActiveModalItem } = useApp();
 
   const [visitState, setVisitState] = useState(visit?.state || 'scheduled');
   const [doctorName, setDoctorName] = useState(visit?.doctorName || 'Dr. Khaled ElGendy');
@@ -15,7 +15,7 @@ export const ManageVisitModal = ({ visit, onClose }) => {
 
   const handleSave = (e) => {
     e.preventDefault();
-    setVisits(prev => prev.map(v => v.id === visit.id ? { ...v, state: visitState, doctorName, reason } : v));
+    updateVisit(visit.id, { state: visitState, doctorName, reason });
     onClose();
   };
 

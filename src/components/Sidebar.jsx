@@ -174,11 +174,11 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
         onClick={() => setActiveDrawer('profile')}
       >
         <div className="avatar-circle">
-          {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'KE'}
+          {(user?.name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase()}
         </div>
         <div className="user-details">
-          <span className="user-name">{user?.name || 'Khaled ElGendy'}</span>
-          <span className="user-email">{user?.email || 'khaledahmed94.ka@gmail.com'}</span>
+          <span className="user-name">{user?.name}</span>
+          <span className="user-email">{user?.email}</span>
         </div>
       </div>
 

@@ -1,30 +1,17 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, Building, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, User, Building, ArrowRight, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { SocialAuthModal } from '../components/modals/SocialAuthModal';
+import { describeAuthError, isAuthCancellation } from '../services/firebaseAuth';
 import { ForgotPasswordModal } from '../components/modals/ForgotPasswordModal';
 
 export const LoginView = () => {
-  const { loginWithEmail, signup, loginWithProvider } = useApp();
+  const { loginWithEmail, signup, loginWithGoogle, startDemo, isFirebaseConfigured } = useApp();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
 
-  // Modal & Loading states
-  const [socialProvider, setSocialProvider] = useState(null); // 'google' | 'apple' | null
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsGoogleLoading(true);
-      await loginWithProvider('google');
-    } catch (err) {
-      console.error('Google Sign-In failed:', err);
-      // The user might close the popup, so we don't necessarily need to alert them every time,
-      // but if we want to: alert('Google Sign-In failed or was cancelled.');
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   // Form states
   const [email, setEmail] = useState('');
@@ -32,28 +19,42 @@ export const LoginView = () => {
   const [name, setName] = useState('');
   const [clinicName, setClinicName] = useState('');
 
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setIsGoogleLoading(true);
     try {
-      if (mode === 'login') {
-        if (!email.trim() || !password) {
-          return alert('Please enter both email and password.');
-        }
-        await loginWithEmail(email, password);
-      } else {
-        if (!name.trim() || !email.trim() || !password) {
-          return alert('Please fill in all required fields.');
-        }
-        await signup(name, email, password, clinicName || 'My Petution Clinic');
-      }
+      await loginWithGoogle();
     } catch (err) {
-      alert(`Authentication failed: ${err.message || 'Invalid credentials'}`);
+      if (!isAuthCancellation(err)) setError(describeAuthError(err));
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
-  const handleDemoLogin = () => {
-    loginWithEmail('khaledahmed94.ka@gmail.com', 'demo123');
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (mode === 'login' && (!email.trim() || !password)) {
+      return setError('Please enter both email and password.');
+    }
+    if (mode === 'signup' && (!name.trim() || !email.trim() || !password)) {
+      return setError('Please fill in all required fields.');
+    }
+    setIsSubmitting(true);
+    try {
+      if (mode === 'login') {
+        await loginWithEmail(email.trim(), password);
+      } else {
+        await signup(name.trim(), email.trim(), password, clinicName.trim() || 'My Petution Clinic');
+      }
+    } catch (err) {
+      setError(describeAuthError(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const signInDisabled = !isFirebaseConfigured || isSubmitting || isGoogleLoading;
 
   return (
     <div className="auth-wrapper">
@@ -71,17 +72,31 @@ export const LoginView = () => {
           </p>
         </div>
 
+        {!isFirebaseConfigured && (
+          <div className="auth-alert" role="status">
+            <AlertTriangle size={16} />
+            <span>Account sign-in isn't configured for this build (missing Firebase settings). You can still try the demo below.</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="auth-alert auth-alert-error" role="alert">
+            <AlertTriangle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Tab Toggle */}
         <div className="auth-tabs">
           <button 
             className={`auth-tab-btn ${mode === 'login' ? 'active' : ''}`}
-            onClick={() => setMode('login')}
+            onClick={() => { setMode('login'); setError(''); }}
           >
             Sign In
           </button>
           <button 
             className={`auth-tab-btn ${mode === 'signup' ? 'active' : ''}`}
-            onClick={() => setMode('signup')}
+            onClick={() => { setMode('signup'); setError(''); }}
           >
             Create Account
           </button>
@@ -92,7 +107,7 @@ export const LoginView = () => {
           <button 
             className="social-btn google-btn"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading}
+            disabled={signInDisabled}
           >
             {isGoogleLoading ? (
               <span className="spinner-small"></span>
@@ -106,8 +121,6 @@ export const LoginView = () => {
             )}
             <span>{isGoogleLoading ? 'Signing in...' : 'Continue with Google'}</span>
           </button>
-          
-          {/* Apple sign-in is hidden for now */}
         </div>
 
         <div className="auth-divider">
@@ -190,8 +203,10 @@ export const LoginView = () => {
             </div>
           </div>
 
-          <button type="submit" className="btn-primary w-full margin-top-md">
-            {mode === 'login' ? 'Sign In to Workspace' : 'Create Clinic Workspace'}
+          <button type="submit" className="btn-primary w-full margin-top-md" disabled={signInDisabled}>
+            {isSubmitting
+              ? (mode === 'login' ? 'Signing in…' : 'Creating account…')
+              : (mode === 'login' ? 'Sign In to Workspace' : 'Create Clinic Workspace')}
             <ArrowRight size={16} />
           </button>
         </form>
@@ -201,12 +216,12 @@ export const LoginView = () => {
           <div className="flex justify-between items-center">
             <div>
               <span className="font-bold text-xs flex items-center gap-xs text-teal">
-                <ShieldCheck size={14} /> Quick Demo Access
+                <ShieldCheck size={14} /> Try the Demo
               </span>
-              <p className="text-xs text-muted">Test live clinic workspace instantly</p>
+              <p className="text-xs text-muted">Sample clinic data. Nothing leaves this browser.</p>
             </div>
-            <button className="btn-secondary text-xs" onClick={handleDemoLogin}>
-              ⚡ Demo Login
+            <button type="button" className="btn-secondary text-xs" onClick={startDemo}>
+              ⚡ Open Demo
             </button>
           </div>
         </div>
@@ -347,6 +362,26 @@ export const LoginView = () => {
 
         .w-full { width: 100%; justify-content: center; }
 
+        .auth-alert {
+          display: flex;
+          gap: 8px;
+          align-items: flex-start;
+          padding: 10px 12px;
+          margin-bottom: 16px;
+          border-radius: var(--radius-sm);
+          background: #fef3c7;
+          color: #92400e;
+          font-size: 0.8rem;
+          line-height: 1.4;
+        }
+
+        .auth-alert svg { flex-shrink: 0; margin-top: 1px; }
+
+        .auth-alert-error {
+          background: #ffe4e6;
+          color: #9f1239;
+        }
+
         .spinner-small {
           width: 14px;
           height: 14px;
@@ -359,13 +394,6 @@ export const LoginView = () => {
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      {/* Modals */}
-      {socialProvider && (
-        <SocialAuthModal 
-          provider={socialProvider} 
-          onClose={() => setSocialProvider(null)} 
-        />
-      )}
       {showForgotModal && (
         <ForgotPasswordModal 
           onClose={() => setShowForgotModal(false)} 
