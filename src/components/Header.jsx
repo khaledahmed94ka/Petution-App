@@ -1,23 +1,57 @@
-import React from 'react';
-import { Bell, CheckCheck, Menu } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, CheckCheck, Menu, AlertTriangle, X, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { PendingInvitations } from './PendingInvitations';
 
 export const Header = ({ onMenuToggle }) => {
   const { 
     settings, 
     notifications, 
-    setNotifications, 
+    markAllNotificationsRead, 
     showNotifications, 
-    setShowNotifications 
+    setShowNotifications,
+    isDemo,
+    syncError,
+    dismissSyncError,
+    myInvites
   } = useApp();
+  const [showInvites, setShowInvites] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
   return (
+    <>
+    {syncError && (
+      <div className="sync-error-banner" role="alert">
+        <AlertTriangle size={16} />
+        <span>{syncError}</span>
+        <button className="icon-btn" title="Dismiss" onClick={dismissSyncError}>
+          <X size={16} />
+        </button>
+      </div>
+    )}
+    {myInvites.length > 0 && (
+      <div className="invite-banner">
+        <Mail size={16} />
+        <span>
+          {myInvites.length === 1
+            ? `You're invited to join ${myInvites[0].clinicName || 'a clinic'} as ${myInvites[0].role}.`
+            : `You have ${myInvites.length} clinic invitations.`}
+        </span>
+        <button className="btn-secondary text-xs" onClick={() => setShowInvites(true)}>Review</button>
+      </div>
+    )}
+    {showInvites && (
+      <div className="modal-overlay invites-overlay" onClick={() => setShowInvites(false)}>
+        <div className="invites-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-between items-center margin-bottom-sm">
+            <h4>Clinic invitations</h4>
+            <button className="icon-btn" onClick={() => setShowInvites(false)}><X size={18} /></button>
+          </div>
+          <PendingInvitations onJoined={() => setShowInvites(false)} />
+        </div>
+      </div>
+    )}
     <header className="top-header">
       <div className="header-left">
         <button 
@@ -32,6 +66,7 @@ export const Header = ({ onMenuToggle }) => {
           <span className="text-muted">Petution</span>
           <span style={{ color: 'var(--text-light)' }}>/</span>
           <span className="font-semibold">{settings.orgName}</span>
+          {isDemo && <span className="demo-badge" title="Demo data stays in this browser and is cleared when you exit">Demo</span>}
         </div>
       </div>
 
@@ -52,7 +87,7 @@ export const Header = ({ onMenuToggle }) => {
               <div className="notif-header">
                 <span className="font-semibold text-sm">Notifications</span>
                 {unreadCount > 0 && (
-                  <button className="text-xs text-teal font-semibold flex items-center gap-xs" onClick={markAllRead}>
+                  <button className="text-xs text-teal font-semibold flex items-center gap-xs" onClick={markAllNotificationsRead}>
                     <CheckCheck size={14} /> Mark all read
                   </button>
                 )}
@@ -125,6 +160,64 @@ export const Header = ({ onMenuToggle }) => {
           margin-top: 2px;
         }
 
+        .sync-error-banner {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 12px 6px 16px;
+          background: #ffe4e6;
+          color: #9f1239;
+          font-size: 0.82rem;
+          border-bottom: 1px solid #fecdd3;
+        }
+
+        .sync-error-banner span { flex: 1; }
+
+        .sync-error-banner .icon-btn { min-height: 32px; color: inherit; }
+
+        .invite-banner {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 12px 6px 16px;
+          background: var(--primary-teal-light);
+          color: var(--primary-teal);
+          font-size: 0.82rem;
+          border-bottom: 1px solid var(--primary-teal-border);
+        }
+
+        .invite-banner span { flex: 1; }
+
+        .invites-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 300;
+          padding: 16px;
+        }
+
+        .invites-modal {
+          background: #ffffff;
+          border-radius: var(--radius-lg);
+          padding: 20px;
+          width: 100%;
+          max-width: 520px;
+        }
+
+        .demo-badge {
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          background: #fef3c7;
+          color: #92400e;
+          padding: 2px 8px;
+          border-radius: 9999px;
+        }
+
         @media (max-width: 1023px) {
           .mobile-menu-btn {
             display: flex !important;
@@ -138,6 +231,7 @@ export const Header = ({ onMenuToggle }) => {
         }
       `}</style>
     </header>
+    </>
   );
 };
 

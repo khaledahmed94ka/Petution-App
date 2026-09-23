@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Bell, Search, MessageCircle, CheckCircle, Clock } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { whatsappUrl } from '../utils/phone';
 
 export const RemindersView = () => {
   const { reminders, updateReminderStatus, clients, pets } = useApp();
@@ -23,15 +24,14 @@ export const RemindersView = () => {
   }).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
   const handleWhatsApp = (client, reminder) => {
-    if (!client.phones || client.phones.length === 0 || !client.phones[0].phone) {
-      alert('No phone number found for this client.');
+    const phone = (client.phones?.find(p => p.isPrimary) || client.phones?.[0])?.phone;
+    const message = `Hello ${client.name || 'there'}, it looks like ${getPetDetails(reminder.petId).name || 'your pet'} is due for a refill/booster of ${reminder.productName}. Would you like to schedule an appointment or order a refill?`;
+    const url = whatsappUrl(phone, message);
+    if (!url) {
+      alert(phone ? `"${phone}" is not a complete phone number. Edit the client's phone to include the full number.` : 'No phone number found for this client.');
       return;
     }
-    
-    const phone = client.phones[0].phone.replace(/[^0-9+]/g, '');
-    const message = `Hello ${client.name || 'there'}, it looks like ${getPetDetails(reminder.petId).name || 'your pet'} is due for a refill/booster of ${reminder.productName}. Would you like to schedule an appointment or order a refill?`;
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener');
   };
 
   const isOverdue = (dateStr) => {

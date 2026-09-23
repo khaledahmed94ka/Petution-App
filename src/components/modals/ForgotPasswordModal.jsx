@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
 import { X, Mail, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { describeAuthError } from '../../services/firebaseAuth';
 
-export const ForgotPasswordModal = ({ onClose }) => {
-  const [email, setEmail] = useState('');
+export const ForgotPasswordModal = ({ onClose, initialEmail = '' }) => {
+  const { resetPassword, isFirebaseConfigured } = useApp();
+  const [email, setEmail] = useState(initialEmail);
   const [isSent, setIsSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email.trim()) return;
+    setError('');
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await resetPassword(email.trim());
       setIsSent(true);
-    }, 1000);
+    } catch (err) {
+      setError(describeAuthError(err));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -45,9 +54,11 @@ export const ForgotPasswordModal = ({ onClose }) => {
               </div>
             </div>
 
+            {error && <p className="reset-error text-xs margin-top-xs" role="alert">{error}</p>}
+
             <div className="modal-footer margin-top-md">
               <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={isLoading}>
+              <button type="submit" className="btn-primary" disabled={isLoading || !isFirebaseConfigured}>
                 {isLoading ? 'Sending...' : 'Send Reset Link'}
                 <ArrowRight size={16} />
               </button>
@@ -56,9 +67,9 @@ export const ForgotPasswordModal = ({ onClose }) => {
         ) : (
           <div className="modal-body text-center py-md">
             <CheckCircle2 size={48} className="text-teal margin-bottom-sm" style={{ margin: '0 auto 12px' }} />
-            <h4>Reset Link Sent!</h4>
+            <h4>Check Your Email</h4>
             <p className="text-muted text-xs margin-top-xs">
-              We sent a password reset link to <strong>{email}</strong>. Check your inbox and spam folder.
+              If an account exists for <strong>{email}</strong>, a password reset link is on its way. Check your inbox and spam folder.
             </p>
             <button className="btn-primary w-full margin-top-md" onClick={onClose}>
               Back to Sign In
@@ -68,6 +79,7 @@ export const ForgotPasswordModal = ({ onClose }) => {
       </div>
 
       <style>{`
+        .reset-error { color: #be123c; }
         .modal-overlay {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
           background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);

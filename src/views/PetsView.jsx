@@ -13,10 +13,10 @@ export const PetsView = () => {
   const speciesOptions = ['All', 'Cat', 'Dog', 'Turtle', 'Bird', 'Other'];
 
   const filteredPets = pets.filter(pet => {
-    const matchesSearch = pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = String(pet.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (pet.microchipNumber && pet.microchipNumber.includes(searchTerm)) ||
                           (pet.cardNo && pet.cardNo.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesSpecies = selectedSpecies === 'All' || pet.species.toLowerCase() === selectedSpecies.toLowerCase();
+    const matchesSpecies = selectedSpecies === 'All' || String(pet.species || '').toLowerCase() === selectedSpecies.toLowerCase();
     return matchesSearch && matchesSpecies;
   });
 
@@ -158,7 +158,7 @@ export const PetsView = () => {
                     </td>
                     <td>{owner ? owner.name : <span className="text-muted">Unassigned</span>}</td>
                     <td>
-                      <span className="badge badge-teal">{pet.species.toUpperCase()}</span>
+                      <span className="badge badge-teal">{String(pet.species || '—').toUpperCase()}</span>
                       {pet.breed && <span className="text-muted text-xs margin-left-xs">({pet.breed})</span>}
                     </td>
                     <td>

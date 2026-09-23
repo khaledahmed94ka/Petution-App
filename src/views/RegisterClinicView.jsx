@@ -6,32 +6,28 @@ export const RegisterClinicView = ({ onComplete }) => {
   const { registerClinic } = useApp();
 
   const [clinicName, setClinicName] = useState('');
-  const [ownerName, setOwnerName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [governorate, setGovernorate] = useState('Cairo');
   const [district, setDistrict] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('Second Plan (14-Day Free Trial)');
 
-  const handleSubmit = (e) => {
+  // You become the owner of the new clinic; it has its own records and team.
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!clinicName.trim() || !ownerName.trim()) {
-      return alert('Please fill in clinic name and owner name.');
+    if (!clinicName.trim()) {
+      return alert('Please fill in the clinic name.');
     }
-
-    registerClinic({
-      clinicName,
-      ownerName,
-      email,
+    setIsSaving(true);
+    const created = await registerClinic({
+      clinicName: clinicName.trim(),
       phone,
       governorate,
       district,
       plan: selectedPlan
     });
-
-    alert(`Clinic workspace "${clinicName}" registered successfully! Launching workspace...`);
-    if (onComplete) onComplete();
+    setIsSaving(false);
+    if (created && onComplete) onComplete();
   };
 
   return (
@@ -57,7 +53,7 @@ export const RegisterClinicView = ({ onComplete }) => {
             <span className="brand-title">Petution</span>
           </div>
           <h2>Register Your Clinic</h2>
-          <p className="text-muted">Create your veterinary clinic workspace in under 60 seconds.</p>
+          <p className="text-muted">Creates a separate clinic with its own records and team. You'll be its owner.</p>
         </div>
 
         {/* Form */}
@@ -74,54 +70,15 @@ export const RegisterClinicView = ({ onComplete }) => {
             />
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Owner / Practice Manager *</label>
-              <input 
-                type="text" 
-                className="form-control"
-                placeholder="Dr. Khaled ElGendy"
-                value={ownerName}
-                onChange={(e) => setOwnerName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Work Email *</label>
-              <input 
-                type="email" 
-                className="form-control"
-                placeholder="doctor@clinic.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Phone Number *</label>
-              <input 
-                type="text" 
-                className="form-control"
-                placeholder="+20 100 123 4567"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Password *</label>
-              <input 
-                type="password" 
-                className="form-control"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+          <div className="form-group">
+            <label>Clinic Phone Number</label>
+            <input 
+              type="text" 
+              className="form-control"
+              placeholder="+20 100 123 4567"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
           </div>
 
           <div className="form-row">
@@ -181,8 +138,8 @@ export const RegisterClinicView = ({ onComplete }) => {
             </div>
           </div>
 
-          <button type="submit" className="btn-primary btn-large margin-top-sm">
-            Register & Launch Clinic Workspace <ArrowRight size={18} />
+          <button type="submit" className="btn-primary btn-large margin-top-sm" disabled={isSaving}>
+            {isSaving ? 'Creating clinic…' : 'Register & Launch Clinic Workspace'} <ArrowRight size={18} />
           </button>
         </form>
 

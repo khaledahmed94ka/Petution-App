@@ -28,7 +28,7 @@ export const AddPetDrawer = () => {
   const [isDeceased, setIsDeceased] = useState(false);
   const [deathDate, setDeathDate] = useState('');
   const [privateNotes, setPrivateNotes] = useState('');
-  const [selectedOwner, setSelectedOwner] = useState(clients[0]?.id || '');
+  const [selectedOwner, setSelectedOwner] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();

@@ -3,3 +3,7 @@ dist/
 .DS_Store
 *.local
 .env
+*-debug.log
+dist-e2e*/
+test-results/
+playwright-report/

@@ -7,11 +7,19 @@
     "dev": "vite",
     "build": "node ./node_modules/vite/bin/vite.js build",
     "preview": "vite preview",
+    "start": "node server/index.js",
+    "dev:mock-api": "ENABLE_MOCK_API=true node server/index.js",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:emulator": "npx -y firebase-tools@14 emulators:exec --only auth,firestore --project demo-petution \"vitest run tests/rules && E2E_EMULATOR=true playwright test\""
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.2.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "firebase": "^12.16.0",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
@@ -19,8 +27,14 @@
     "vite": "^5.1.6"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.56.1",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
-    "gh-pages": "^6.3.0"
+    "gh-pages": "^6.3.0",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.7"
   }
 }

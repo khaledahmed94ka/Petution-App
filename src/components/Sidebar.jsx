@@ -16,9 +16,11 @@ import {
   ChevronDown,
   Check,
   PlusCircle,
-  Trash2
+  Trash2,
+  LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { canOpenPage } from '../data/permissions';
 
 export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen, onCloseMobile }) => {
   const { 
@@ -28,6 +30,9 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
     activeWorkspaceId, 
     switchWorkspace, 
     deleteWorkspace,
+    leaveWorkspace,
+    role,
+    isDemo,
     showWorkspaceMenu, 
     setShowWorkspaceMenu,
     setActiveDrawer
@@ -38,7 +43,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
     if (onCloseMobile) onCloseMobile();
   };
 
-  const mainNav = [
+  const allMainNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'pets', label: 'Pets', icon: Dog },
@@ -51,11 +56,15 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
     { id: 'chats', label: 'Chats', icon: MessageSquare }
   ];
 
-  const secondaryNav = [
+  const allSecondaryNav = [
     { id: 'team', label: 'Team', icon: UserCheck },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'help', label: 'Get Help', icon: HelpCircle }
   ];
+
+  // Pages this role can't use are hidden (the rules refuse the data anyway).
+  const mainNav = allMainNav.filter(item => canOpenPage(role, item.id));
+  const secondaryNav = allSecondaryNav.filter(item => canOpenPage(role, item.id));
 
   return (
     <>
@@ -93,21 +102,35 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
                 <div className="ws-item-circle">{ws.name.charAt(0)}</div>
                 <div className="ws-item-info">
                   <span className="ws-item-name">{ws.name}</span>
-                  <span className="ws-item-plan">{ws.plan || 'Active Workspace'}</span>
+                  <span className="ws-item-plan">{[ws.role, ws.plan].filter(Boolean).join(' • ') || 'Active Workspace'}</span>
                 </div>
                 {ws.id === activeWorkspaceId && <Check size={14} className="text-teal margin-right-xs" />}
-                {workspaces.length > 1 && (
+                {workspaces.length > 1 && ws.isFounder && (
                   <button 
                     className="icon-btn text-rose" 
                     title="Delete Clinic Workspace"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm(`Permanently delete clinic workspace "${ws.name}"?`)) {
+                      if (confirm(`Permanently delete clinic workspace "${ws.name}" and all its records?`)) {
                         deleteWorkspace(ws.id);
                       }
                     }}
                   >
                     <Trash2 size={13} />
+                  </button>
+                )}
+                {!isDemo && !ws.isFounder && (
+                  <button
+                    className="icon-btn text-rose"
+                    title="Leave this clinic"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Leave "${ws.name}"? You'll lose access until someone invites you again.`)) {
+                        leaveWorkspace(ws.id);
+                      }
+                    }}
+                  >
+                    <LogOut size={13} />
                   </button>
                 )}
               </div>
@@ -174,11 +197,11 @@ export const Sidebar = ({ activeTab, setActiveTab, onRegisterClick, isMobileOpen
         onClick={() => setActiveDrawer('profile')}
       >
         <div className="avatar-circle">
-          {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'KE'}
+          {(user?.name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase()}
         </div>
         <div className="user-details">
-          <span className="user-name">{user?.name || 'Khaled ElGendy'}</span>
-          <span className="user-email">{user?.email || 'khaledahmed94.ka@gmail.com'}</span>
+          <span className="user-name">{user?.name}</span>
+          <span className="user-email">{user?.email}</span>
         </div>
       </div>
 

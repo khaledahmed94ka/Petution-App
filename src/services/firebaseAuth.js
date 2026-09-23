@@ -1,134 +1,115 @@
 // =============================================================================
-// PETUTION REAL AUTHENTICATION SERVICE: Firebase Authentication
-// Production Google & Firebase Authentication Engine
+// PETUTION AUTHENTICATION SERVICE: Firebase Authentication
+// Firebase is the only source of truth for who is signed in.
 // =============================================================================
 
-import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut as firebaseSignOut, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  sendPasswordResetEmail 
-} from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp } from 'firebase/app';
+import {
+  getAuth,
+  connectAuthEmulator,
+  onAuthStateChanged,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  updateProfile
+} from 'firebase/auth';
+import { initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
-// 1. Default Firebase Configuration
-export const firebaseConfig = {
-  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyPetutionDefaultKeyForDemo99812",
-  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "petution-app.firebaseapp.com",
-  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "petution-app",
-  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "petution-app.appspot.com",
-  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "99812034912",
-  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:99812034912:web:a1b2c3d4e5f6"
+const env = import.meta.env;
+
+const firebaseConfig = {
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// A build without Firebase settings cannot sign anyone in; the app then offers only the local demo.
+export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
-// 2. Real Authentication Wrapper Functions
+let auth = null;
+let db = null;
 
-/**
- * Sign in using Google OAuth 2.0 via Firebase
- */
-export const realGoogleSignInWithPopup = async () => {
-  const provider = new GoogleAuthProvider();
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    
-    return {
-      success: true,
-      user: {
-        id: user.uid,
-        name: user.displayName || 'Dr. Khaled ElGendy',
-        email: user.email,
-        photoURL: user.photoURL,
-        role: 'Owner', // Default role for now
-        provider: 'google',
-        isAuthenticated: true
-      }
-    };
-  } catch (error) {
-    console.error('[Google Auth] Firebase sign-in failed:', error);
-    throw error;
+if (isFirebaseConfigured) {
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+
+  if (env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
   }
+}
+
+export { auth, db };
+
+export const toAppUser = (firebaseUser) => ({
+  id: firebaseUser.uid,
+  name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Clinic Owner',
+  email: firebaseUser.email || '',
+  photoURL: firebaseUser.photoURL || null,
+  role: 'Owner',
+  provider: firebaseUser.providerData?.some(p => p.providerId === 'google.com') ? 'google' : 'email',
+  emailVerified: Boolean(firebaseUser.emailVerified),
+  isAuthenticated: true
+});
+
+export const watchAuth = (callback) => onAuthStateChanged(auth, callback);
+
+export const signInWithGoogle = async () => {
+  const result = await signInWithPopup(auth, new GoogleAuthProvider());
+  return result.user;
 };
 
-/**
- * Sign in using Email and Password
- */
-export const realEmailSignIn = async (email, password) => {
-  try {
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    const user = result.user;
-    return {
-      success: true,
-      user: {
-        id: user.uid,
-        name: user.displayName || email.split('@')[0].replace(/[\._]/g, ' '),
-        email: user.email,
-        role: 'Owner',
-        provider: 'email',
-        isAuthenticated: true
-      }
-    };
-  } catch (error) {
-    console.error('[Email Auth] Firebase sign-in failed:', error);
-    throw error;
-  }
+export const signInWithEmail = async (email, password) => {
+  const result = await signInWithEmailAndPassword(auth, email, password);
+  return result.user;
 };
 
-/**
- * Sign up using Email and Password
- */
-export const realEmailSignUp = async (email, password, displayName) => {
-  try {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-    const user = result.user;
-    return {
-      success: true,
-      user: {
-        id: user.uid,
-        name: displayName || email.split('@')[0],
-        email: user.email,
-        role: 'Owner',
-        provider: 'email',
-        isAuthenticated: true
-      }
-    };
-  } catch (error) {
-    console.error('[Email Auth] Firebase sign-up failed:', error);
-    throw error;
+export const signUpWithEmail = async (email, password, displayName) => {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  if (displayName) {
+    // Without this the name typed at sign-up is lost on the next page load.
+    await updateProfile(result.user, { displayName });
   }
+  // Needed before accepting a clinic invitation. Not fatal if it can't be sent now.
+  sendEmailVerification(result.user).catch(err => console.warn('[Auth] Verification email not sent:', err));
+  return result.user;
 };
 
-/**
- * Send Password Reset Email
- */
-export const realSendPasswordReset = async (email) => {
-  try {
-    await sendPasswordResetEmail(auth, email);
-    return { success: true };
-  } catch (error) {
-    console.error('[Email Auth] Password reset failed:', error);
-    throw error;
-  }
+export const resendVerificationEmail = () => sendEmailVerification(auth.currentUser);
+
+// Picks up a verification done in another tab (the ID token carries email_verified).
+export const refreshSignedInUser = async () => {
+  await auth.currentUser.reload();
+  await auth.currentUser.getIdToken(true);
+  return auth.currentUser;
 };
 
-/**
- * Sign out
- */
-export const realSignOut = async () => {
-  try {
-    await firebaseSignOut(auth);
-    return { success: true };
-  } catch (error) {
-    console.error('[Auth] Sign out failed:', error);
-    throw error;
-  }
+export const sendPasswordReset = (email) => sendPasswordResetEmail(auth, email);
+
+export const signOutUser = () => (auth ? signOut(auth) : Promise.resolve());
+
+const AUTH_ERROR_MESSAGES = {
+  'auth/invalid-credential': 'Wrong email or password.',
+  'auth/wrong-password': 'Wrong email or password.',
+  'auth/user-not-found': 'Wrong email or password.',
+  'auth/invalid-email': 'That email address is not valid.',
+  'auth/email-already-in-use': 'An account with this email already exists. Sign in instead.',
+  'auth/weak-password': 'Choose a password with at least 6 characters.',
+  'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
+  'auth/network-request-failed': 'No connection to the sign-in server. Check your internet connection.',
+  'auth/popup-blocked': 'The browser blocked the Google sign-in window. Allow pop-ups for this site and try again.'
 };
+
+export const describeAuthError = (err) => AUTH_ERROR_MESSAGES[err?.code] || err?.message || 'Sign-in failed.';
+
+// Closing the Google window is a choice, not an error worth reporting.
+export const isAuthCancellation = (err) =>
+  ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(err?.code);

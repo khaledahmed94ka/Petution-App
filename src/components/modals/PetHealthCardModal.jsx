@@ -37,9 +37,9 @@ export const PetHealthCardModal = ({ pet, onClose }) => {
             <div className="hero-emoji">{pet.species === 'cat' ? '🐱' : '🐶'}</div>
             <div className="hero-info">
               <h3>{pet.name}</h3>
-              <span className="badge badge-teal">{pet.species.toUpperCase()} • {pet.breed || 'Mixed'}</span>
+              <span className="badge badge-teal">{String(pet.species || '').toUpperCase()} • {pet.breed || 'Mixed'}</span>
               <div className="text-xs text-muted margin-top-xs">
-                Card #: <strong>{pet.cardNo || 'CRD-9982'}</strong> • Protocol: <strong>{pet.protocolNo || 'PRT-102'}</strong>
+                Card #: <strong>{pet.cardNo || '—'}</strong> • Protocol: <strong>{pet.protocolNo || '—'}</strong>
               </div>
             </div>
           </div>

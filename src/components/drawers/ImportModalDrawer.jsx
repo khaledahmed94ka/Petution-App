@@ -9,13 +9,7 @@ export const ImportModalDrawer = ({ targetType = 'clients' }) => {
     importClientsData, 
     importPetsData, 
     importProductsData, 
-    importFullBackup,
-    clients,
-    pets,
-    visits,
-    products,
-    invoices,
-    settings 
+    importFullBackup
   } = useApp();
 
   const [fileContent, setFileContent] = useState('');
@@ -41,15 +35,22 @@ export const ImportModalDrawer = ({ targetType = 'clients' }) => {
     if (!fileContent) return alert('Please select a file to import.');
 
     try {
+      let rows;
       if (fileType === 'json') {
         const jsonData = JSON.parse(fileContent);
-        importFullBackup(jsonData);
-        setActiveDrawer(null);
-        return;
+        if (!Array.isArray(jsonData)) {
+          // A full Petution backup: merge it only after the user confirms.
+          if (confirm('This file is a full Petution backup, not a list of ' + targetType + '. Merge the whole backup into this clinic? Records with the same ID are replaced; nothing else is deleted.')) {
+            importFullBackup(jsonData);
+            setActiveDrawer(null);
+          }
+          return;
+        }
+        rows = jsonData;
+      } else {
+        rows = parseCSVText(fileContent);
       }
-
-      const rows = parseCSVText(fileContent);
-      if (!rows.length) return alert('CSV file is empty or could not be parsed.');
+      if (!rows.length) return alert('The file is empty or could not be parsed.');
 
       if (targetType === 'clients') {
         importClientsData(rows);

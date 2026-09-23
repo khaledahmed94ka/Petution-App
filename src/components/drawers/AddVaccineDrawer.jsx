@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { X, Syringe } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
-export const AddVaccineDrawer = () => {
-  const { setActiveDrawer, pets, addVaccine } = useApp();
+export const AddVaccineDrawer = ({ petId }) => {
+  const { setActiveDrawer, setActiveModalItem, pets, addVaccine, user } = useApp();
 
-  const [selectedPetId, setSelectedPetId] = useState(pets[0]?.id || '');
+  // Opened from a pet's passport: record the dose for that pet, never a default one.
+  const [selectedPetId, setSelectedPetId] = useState(pets.some(p => p.id === petId) ? petId : '');
   const [vaccineName, setVaccineName] = useState('Tricat Trio (FVRCP)');
+  const [otherVaccineName, setOtherVaccineName] = useState('');
   const [manufacturer, setManufacturer] = useState('Zoetis');
   const [batchNumber, setBatchNumber] = useState('');
   const [administeredDate, setAdministeredDate] = useState(new Date().toISOString().split('T')[0]);
@@ -16,7 +18,7 @@ export const AddVaccineDrawer = () => {
   nextYearDate.setFullYear(nextYearDate.getFullYear() + 1);
   const [dueDate, setDueDate] = useState(nextYearDate.toISOString().split('T')[0]);
 
-  const [vetName, setVetName] = useState('Dr. Khaled ElGendy');
+  const [vetName, setVetName] = useState(user?.name || '');
   const [notes, setNotes] = useState('');
 
   const commonVaccines = [
@@ -30,15 +32,21 @@ export const AddVaccineDrawer = () => {
     'Other'
   ];
 
+  const backToPassport = (id = petId) => {
+    setActiveModalItem(id);
+    setActiveDrawer('petPassport');
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!selectedPetId || !vaccineName.trim()) {
-      return alert('Please select a pet and vaccine name.');
+    const finalName = vaccineName === 'Other' ? otherVaccineName.trim() : vaccineName;
+    if (!selectedPetId || !finalName) {
+      return alert('Please select a pet and enter the vaccine name.');
     }
 
     addVaccine({
       petId: selectedPetId,
-      vaccineName,
+      vaccineName: finalName,
       manufacturer,
       batchNumber,
       administeredDate,
@@ -47,11 +55,11 @@ export const AddVaccineDrawer = () => {
       notes
     });
 
-    setActiveDrawer('petPassport');
+    backToPassport(selectedPetId);
   };
 
   return (
-    <div className="drawer-backdrop" onClick={() => setActiveDrawer('petPassport')}>
+    <div className="drawer-backdrop" onClick={() => backToPassport()}>
       <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-header">
           <div>
@@ -60,7 +68,7 @@ export const AddVaccineDrawer = () => {
             </h3>
             <p>Log dose administration, manufacturer batch #, and next due date.</p>
           </div>
-          <button className="icon-btn" onClick={() => setActiveDrawer('petPassport')}>
+          <button className="icon-btn" onClick={() => backToPassport()}>
             <X size={18} />
           </button>
         </div>
@@ -74,8 +82,9 @@ export const AddVaccineDrawer = () => {
               onChange={(e) => setSelectedPetId(e.target.value)}
               required
             >
+              <option value="" disabled>Select a pet</option>
               {pets.map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.species.toUpperCase()} • {p.breed || 'Cross'})</option>
+                <option key={p.id} value={p.id}>{p.name} ({String(p.species || '').toUpperCase()} • {p.breed || 'Cross'})</option>
               ))}
             </select>
           </div>
@@ -91,6 +100,16 @@ export const AddVaccineDrawer = () => {
                 <option key={vac} value={vac}>{vac}</option>
               ))}
             </select>
+            {vaccineName === 'Other' && (
+              <input
+                type="text"
+                className="form-control margin-top-xs"
+                placeholder="Vaccine name"
+                value={otherVaccineName}
+                onChange={(e) => setOtherVaccineName(e.target.value)}
+                required
+              />
+            )}
           </div>
 
           <div className="form-row">
@@ -161,7 +180,7 @@ export const AddVaccineDrawer = () => {
           </div>
 
           <div className="drawer-footer margin-top-auto">
-            <button type="button" className="btn-secondary" onClick={() => setActiveDrawer('petPassport')}>
+            <button type="button" className="btn-secondary" onClick={() => backToPassport()}>
               Back to Passport
             </button>
             <button type="submit" className="btn-primary">

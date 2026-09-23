@@ -1,29 +1,34 @@
 import React, { useState } from 'react';
 import { X, FileText, Stethoscope, Printer, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { RecordNotFoundDrawer } from './RecordNotFoundDrawer';
+
+// Vitals are only what the vet measured: blank stays blank (saved as null), never a default.
+const vitalOrBlank = (value) => (value === null || value === undefined ? '' : value);
+const vitalOrNull = (value) => (value === '' || value === null || value === undefined || Number.isNaN(Number(value)) ? null : Number(value));
+const showVital = (value, unit) => (value === '' || value === null || value === undefined ? '—' : `${value} ${unit}`);
 
 export const SOAPNoteDrawer = ({ visitId }) => {
-  const { setActiveDrawer, visits, pets, clients, soapNotes, saveSOAPNote, settings } = useApp();
+  const { setActiveDrawer, visits, pets, clients, soapNotes, saveSOAPNote, settings, user, can } = useApp();
+  const readOnly = !can('writeMedical');
 
-  const visit = visits.find(v => v.id === visitId) || visits[0];
+  const visit = visits.find(v => v.id === visitId);
   const pet = pets.find(p => p.id === visit?.petId);
   const owner = clients.find(c => pet?.owners?.includes(c.id));
+  const vetName = visit?.doctorName && visit.doctorName !== 'Unassigned' ? visit.doctorName : (user?.name || '');
 
   const existingSoap = soapNotes.find(s => s.visitId === visit?.id);
 
   const [subjective, setSubjective] = useState(existingSoap?.subjective || visit?.reason || '');
-  const [tempC, setTempC] = useState(existingSoap?.tempC || 38.5);
-  const [weightKg, setWeightKg] = useState(existingSoap?.weightKg || 4.2);
-  const [heartRateBpm, setHeartRateBpm] = useState(existingSoap?.heartRateBpm || 120);
-  const [respiratoryRateBpm, setRespiratoryRateBpm] = useState(existingSoap?.respiratoryRateBpm || 24);
+  const [tempC, setTempC] = useState(vitalOrBlank(existingSoap?.tempC));
+  const [weightKg, setWeightKg] = useState(vitalOrBlank(existingSoap?.weightKg));
+  const [heartRateBpm, setHeartRateBpm] = useState(vitalOrBlank(existingSoap?.heartRateBpm));
+  const [respiratoryRateBpm, setRespiratoryRateBpm] = useState(vitalOrBlank(existingSoap?.respiratoryRateBpm));
   const [assessment, setAssessment] = useState(existingSoap?.assessment || '');
   const [plan, setPlan] = useState(existingSoap?.plan || '');
 
-  const [rxMedications, setRxMedications] = useState(
-    existingSoap?.rxMedications || [
-      { name: 'Amoxicillin Drops 100mg/ml', dosage: '0.5 ml', frequency: 'Twice daily (BID)', duration: '7 days' }
-    ]
-  );
+  // Nothing is prescribed until the vet adds it.
+  const [rxMedications, setRxMedications] = useState(existingSoap?.rxMedications || []);
 
   const addRxItem = () => {
     setRxMedications(prev => [
@@ -44,18 +49,18 @@ export const SOAPNoteDrawer = ({ visitId }) => {
     if (e) e.preventDefault();
     saveSOAPNote({
       id: existingSoap?.id,
-      visitId: visit?.id,
-      petId: pet?.id,
-      vetName: visit?.doctorName || 'Dr. Khaled ElGendy',
-      date: visit?.date || new Date().toISOString().split('T')[0],
+      visitId: visit.id,
+      petId: pet.id,
+      vetName,
+      date: visit.date || new Date().toISOString().split('T')[0],
       subjective,
-      tempC: Number(tempC) || 0,
-      weightKg: Number(weightKg) || 0,
-      heartRateBpm: Number(heartRateBpm) || 0,
-      respiratoryRateBpm: Number(respiratoryRateBpm) || 0,
+      tempC: vitalOrNull(tempC),
+      weightKg: vitalOrNull(weightKg),
+      heartRateBpm: vitalOrNull(heartRateBpm),
+      respiratoryRateBpm: vitalOrNull(respiratoryRateBpm),
       assessment,
       plan,
-      rxMedications
+      rxMedications: rxMedications.filter(rx => rx.name.trim())
     });
     alert('SOAP Clinical Note & Prescriptions saved successfully!');
     setActiveDrawer(null);
@@ -65,7 +70,14 @@ export const SOAPNoteDrawer = ({ visitId }) => {
     window.print();
   };
 
-  if (!visit || !pet) return null;
+  if (!visit || !pet) {
+    return (
+      <RecordNotFoundDrawer
+        title="Visit not found"
+        message="This visit or its patient no longer exists, so no clinical note can be opened for it."
+      />
+    );
+  }
 
   return (
     <div className="drawer-backdrop" onClick={() => setActiveDrawer(null)}>
@@ -76,7 +88,7 @@ export const SOAPNoteDrawer = ({ visitId }) => {
             <h3 className="flex items-center gap-xs">
               <Stethoscope size={20} className="text-teal" /> SOAP Medical Record & Rx Prescriptions
             </h3>
-            <p>Clinical consultation notes for {pet.name} ({pet.species.toUpperCase()}).</p>
+            <p>Clinical consultation notes for {pet.name} ({String(pet.species || '').toUpperCase()}).</p>
           </div>
           <div className="flex gap-xs">
             <button className="btn-secondary text-xs flex items-center gap-xs" onClick={handlePrintRx}>
@@ -109,14 +121,21 @@ export const SOAPNoteDrawer = ({ visitId }) => {
                 <span><strong>Date:</strong> {visit.date}</span>
               </div>
               <div className="flex justify-between text-xs margin-top-xs">
-                <span><strong>Weight:</strong> {weightKg} kg</span>
-                <span><strong>Temp:</strong> {tempC} °C</span>
-                <span><strong>Vet:</strong> {visit.doctorName || 'Dr. Khaled ElGendy'}</span>
+                <span><strong>Weight:</strong> {showVital(weightKg, 'kg')}</span>
+                <span><strong>Temp:</strong> {showVital(tempC, '°C')}</span>
+                <span><strong>Vet:</strong> {vetName || '—'}</span>
               </div>
             </div>
 
+            {readOnly && (
+              <p className="soap-readonly text-xs" role="status">
+                You can read this note. Only vets and owners can edit clinical notes and prescriptions.
+              </p>
+            )}
+
             {/* Form Editor */}
             <form onSubmit={handleSave} className="soap-form">
+              <fieldset disabled={readOnly} className="soap-fieldset">
               {/* S - Subjective */}
               <div className="form-group">
                 <label className="font-bold text-teal text-xs">S — SUBJECTIVE (Client Complaint & History)</label>
@@ -139,6 +158,7 @@ export const SOAPNoteDrawer = ({ visitId }) => {
                       type="number" 
                       step="0.1" 
                       className="form-control font-bold"
+                      placeholder="—"
                       value={tempC}
                       onChange={(e) => setTempC(e.target.value)}
                     />
@@ -149,6 +169,7 @@ export const SOAPNoteDrawer = ({ visitId }) => {
                       type="number" 
                       step="0.1" 
                       className="form-control font-bold"
+                      placeholder="—"
                       value={weightKg}
                       onChange={(e) => setWeightKg(e.target.value)}
                     />
@@ -158,6 +179,7 @@ export const SOAPNoteDrawer = ({ visitId }) => {
                     <input 
                       type="number" 
                       className="form-control"
+                      placeholder="—"
                       value={heartRateBpm}
                       onChange={(e) => setHeartRateBpm(e.target.value)}
                     />
@@ -167,6 +189,7 @@ export const SOAPNoteDrawer = ({ visitId }) => {
                     <input 
                       type="number" 
                       className="form-control"
+                      placeholder="—"
                       value={respiratoryRateBpm}
                       onChange={(e) => setRespiratoryRateBpm(e.target.value)}
                     />
@@ -200,6 +223,9 @@ export const SOAPNoteDrawer = ({ visitId }) => {
                 </div>
 
                 <div className="rx-items-stack">
+                  {rxMedications.length === 0 && (
+                    <p className="text-xs text-muted">No medications prescribed. Use "Add Medication" to prescribe.</p>
+                  )}
                   {rxMedications.map((rx, idx) => (
                     <div key={idx} className="rx-item-row card">
                       <div className="form-row">
@@ -279,19 +305,23 @@ export const SOAPNoteDrawer = ({ visitId }) => {
               {/* Doctor Signature Block */}
               <div className="rx-footer-sig margin-top-lg">
                 <div className="text-right">
-                  <div className="sig-line-doctor">{visit.doctorName || 'Dr. Khaled ElGendy'}</div>
+                  <div className="sig-line-doctor">{vetName || '\u00a0'}</div>
                   <span className="text-xs text-muted">Veterinary Surgeon Signature</span>
                 </div>
               </div>
 
+              </fieldset>
+
               {/* Drawer Actions */}
               <div className="drawer-footer margin-top-lg no-print">
                 <button type="button" className="btn-secondary" onClick={() => setActiveDrawer(null)}>
-                  Cancel
+                  {readOnly ? 'Close' : 'Cancel'}
                 </button>
-                <button type="submit" className="btn-primary">
-                  Save SOAP Record & Rx
-                </button>
+                {!readOnly && (
+                  <button type="submit" className="btn-primary">
+                    Save SOAP Record & Rx
+                  </button>
+                )}
               </div>
             </form>
           </div>
@@ -300,6 +330,8 @@ export const SOAPNoteDrawer = ({ visitId }) => {
 
       <style>{`
         .soap-panel { max-width: 760px; }
+        .soap-fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
+        .soap-readonly { background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; }
         .rx-printable-card {
           background: #ffffff;
           border: 1px solid var(--border-card);

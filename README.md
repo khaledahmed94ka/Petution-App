@@ -13,15 +13,15 @@
 
 | Module | Capabilities |
 |--------|-------------|
-| **Dashboard** | Revenue banner, 7 clinic pulse KPIs, 4 attention alert cards, quick-action shortcuts, live visit queue, **Getting Started onboarding checklist** with progress bar |
+| **Dashboard** | Today's paid revenue vs yesterday, 7 clinic pulse KPIs and 4 attention cards computed from real records (overdue/upcoming reminders, low stock, unpaid invoices), today's visit queue by time, **Getting Started checklist** for the steps your role can do |
 | **Clients** | Add/search/filter clients, phone management with WhatsApp flag, tag-based filtering, CSV export & import |
 | **Pets** | Add pets with species/breed/health info, owner linking, species chip filter, vaccination tracking, **microchip tracking**, **blood group**, **aggressive caution badges**, **deceased status marking**, **Digital Vaccine Passport**, CSV export & import |
 | **Visits** | Schedule visits, state transitions (Scheduled → In-Progress → Completed / Cancelled), date & state filtering, **SOAP Medical Notes & Rx Prescriptions** |
-| **Invoices** | Create invoices with product selection, discount/tax calculator, status filtering, date-range filtering, print receipt |
+| **Invoices** | Several line items per invoice (price override, stock warnings), linked to pet, owner and visit; products leave stock when billed and return if the invoice is cancelled; mark paid; refill reminders; printed receipts list every line |
 | **Expenses** | Full expense tracking with categories (Rent, Supplies, Salaries, Equipment, Utilities, Marketing, Other), date filtering, CSV export |
 | **Products & Services** | Full CRUD (add/edit/delete), stock tracking with alerts, stock logs, separate product/service tabs, CSV export & import |
-| **Analytics** | 18 live KPI cards, revenue/visit/client metrics, **Net Profit calculation (Revenue − Expenses)**, doctor & time-range filtering with dynamic data |
-| **Team** | Invite members, role management (Owner/Admin/Vet/Receptionist), search & filter, invitation tracking |
+| **Analytics** | 12 KPIs computed for the chosen period (revenue by payment date vs the previous period, completion rate, returning clients, services sold, **profit = revenue − expenses**…); 6 KPIs with no data yet are marked "Not tracked yet" |
+| **Team** | Invite by email and role; the invitee joins on sign-in (verified email). Role dropdown, remove access, pending invitations with a prepared email. Roles are enforced by the security rules |
 | **Settings** | Organization profile management, full JSON system backup & restore, **Danger Zone with clinic workspace deletion** |
 
 ### 💉 Digital Pet Passport & Vaccine Scheduler
@@ -59,12 +59,31 @@
 - **Net Profit** — Analytics view subtracts total expenses from revenue
 - **Full CRUD** — Add and delete individual expense entries
 
-### 🔐 Authentication System
+### 🔐 Authentication & Accounts
 
-- **Login Screen** — Google, Apple, Email/Password login options
-- **Clinic Registration** — Register new clinic workspace on first login
-- **Demo Access** — Instant demo login with pre-populated data
-- **Profile Drawer** — View logged-in user info with logout button
+- **Firebase Authentication** — Google and Email/Password sign-in, sign-up, and real password-reset emails
+- **Per-clinic data** — Each clinic's records live in Firestore under `clinics/{clinicId}/`; `firestore.rules` lets only its members in, with what their role allows
+- **First sign-in** — A new account gets its own clinic. Records an earlier version stored under `users/{uid}/` are moved into it automatically
+- **Invitations** — People join a clinic only by accepting an invitation sent to their (verified) email
+- **Starts signed out** — Nothing in the browser can mark someone as logged in; Firebase decides
+- **Demo mode** — "Open Demo" loads a sample clinic with no account. Demo data stays in this browser, never reaches the cloud, and is wiped on exit
+- **Profile Drawer** — View signed-in user info and sign out (signing out clears clinic data from the page)
+
+### 👥 Roles & Permissions
+
+Enforced by `firestore.rules` on the server and mirrored in the UI (`src/data/permissions.js`).
+
+| | Owner | Vet | Receptionist | Admin |
+|---|:-:|:-:|:-:|:-:|
+| Clients, pets, visits, invoices, reminders | ✅ | ✅ | ✅ | ✅ |
+| SOAP notes, prescriptions, vaccines | ✅ | ✅ | read only | read only |
+| Add / edit / price products and services | ✅ | – | – | ✅ |
+| Sell items (reduces stock) | ✅ | ✅ | ✅ | ✅ |
+| Expenses and analytics | ✅ | – | – | ✅ |
+| Clinic settings, backups, integrations | ✅ | – | – | – |
+| Invite people, change roles, remove members | ✅ | – | – | – |
+
+Nobody can change their own role, and the clinic's founder can't be demoted or removed. In the demo, the profile drawer lets you preview the app as each role.
 
 ### 🚀 Getting Started Onboarding
 
@@ -75,9 +94,10 @@
 
 ### 🔧 System Features
 
-- **Multi-Workspace** — Register and switch between multiple clinic workspaces, **delete workspaces** from Sidebar or Settings Danger Zone
-- **Data Persistence** — All data saved to `localStorage` (clients, pets, visits, products, invoices, expenses, vaccines, SOAP notes, team, settings, notifications, stock logs)
-- **Import/Export** — CSV import/export for Clients, Pets, Products. Full JSON system backup & restore (now includes vaccines & SOAP notes)
+- **Multiple clinics** — Register more clinics; each has its own records and team. The switcher shows your role in each. The founder can delete a clinic; other members can leave
+- **Data Persistence** — Every change is saved to Firestore through one store and the screen mirrors live snapshots, so edits survive reloads and appear on other devices. Failed saves show a banner.
+- **Import/Export** — CSV import/export for Clients, Pets, Products. Full JSON backup of every collection; restore merges into the clinic
+- **Shopify Sync (optional)** — Off by default. A clinic can switch it on in Settings → Integrations and enter its own `*.myshopify.com` store; new clients/products are then sent with the user's Firebase ID token
 - **Responsive Design** — Mobile-first layout with breakpoints at 640px, 768px, and 1024px
 - **Notifications** — Bell icon with unread count, mark-all-read, persistent across sessions
 - **Touch-Friendly** — 44px minimum touch targets, safe-area insets for iPhone notch, scrollable tabs
@@ -92,7 +112,10 @@
 | **Vite 5** | Build tool & dev server |
 | **Lucide React** | Icon library |
 | **Vanilla CSS** | Mobile-first responsive styling |
-| **localStorage** | Client-side data persistence |
+| **Firebase Auth + Firestore** | Sign-in and per-account data storage |
+| **Express** | Serves the built app on Render (no data stored server-side) |
+| **Vitest + Testing Library** | Unit and screen tests |
+| **Playwright + Firebase emulators** | Browser tests and security-rules tests |
 | **GitHub Pages** | Deployment via `gh-pages` |
 | **Render.com** | Production deployment via `render.yaml` |
 
@@ -105,8 +128,20 @@ petution-app/
 ├── index.html                    # Entry HTML with viewport & Google Fonts
 ├── vite.config.js                # Vite config (base path, dev server port)
 ├── render.yaml                   # Render.com deployment config
+├── firestore.rules               # Firestore security rules: clinics, members & roles, invitations
+├── firestore.indexes.json        # Index for listing a user's clinic memberships
+├── firebase.json                 # Rules path + local emulator ports
+├── .env.example                  # Firebase web settings to copy into .env
 ├── .node-version                 # Node 20.11.0 for Render
 ├── package.json                  # Scripts, dependencies
+├── playwright.config.js          # Browser tests (demo + emulator projects)
+│
+├── server/
+│   └── index.js                  # Express server for the built app (mock API only with ENABLE_MOCK_API=true)
+│
+├── tests/
+│   ├── e2e/                      # Playwright browser tests
+│   └── rules/                    # Firestore security rules tests (emulators)
 │
 ├── src/
 │   ├── main.jsx                  # React DOM entry point
@@ -114,7 +149,20 @@ petution-app/
 │   ├── index.css                 # Global mobile-first responsive styles
 │   │
 │   ├── context/
-│   │   └── AppContext.jsx        # Central state management (React Context)
+│   │   └── AppContext.jsx        # Session, clinic data mirror, and every mutation
+│   │
+│   ├── services/
+│   │   ├── firebaseAuth.js       # Firebase init, sign-in/up/out, password reset
+│   │   ├── firestoreDb.js        # Store for one clinic (Firestore, live listeners, role-aware)
+│   │   ├── clinicDirectory.js    # My clinics, creating/deleting clinics, invitations, data migration
+│   │   ├── demoStore.js          # Store for demo mode (this browser only)
+│   │   ├── legacyLocalData.js    # Finds records older versions left in localStorage
+│   │   └── shopifySync.js        # Optional per-clinic Shopify sync
+│   │
+│   ├── data/
+│   │   ├── collections.js        # List of stored collections, sorting, default settings
+│   │   ├── permissions.js        # Roles and what each may do
+│   │   └── demoSeed.js           # Sample clinic for demo mode
 │   │
 │   ├── components/
 │   │   ├── Sidebar.jsx           # Desktop sidebar + mobile off-canvas nav
@@ -149,9 +197,13 @@ petution-app/
 │   │   └── RegisterClinicView.jsx
 │   │
 │   └── utils/
-│       └── dataExportImport.js   # CSV/JSON export & import utilities
+│       ├── dataExportImport.js   # CSV/JSON export & import utilities
+│       ├── ids.js                # Random record IDs, local dates, slugs
+│       ├── invoice.js            # Invoice totals, stock usage, invoice numbers
+│       ├── metrics.js            # Dashboard / Clients / Visits / Analytics numbers
+│       └── phone.js              # International phone numbers and WhatsApp links
 │
-└── dist/                         # Production build output
+└── dist/                         # Production build output (not committed)
 ```
 
 ---
@@ -172,11 +224,33 @@ cd Petution-App
 # Install dependencies
 npm install
 
+# Add your Firebase web settings (Firebase console → Project settings → Your apps)
+cp .env.example .env
+
 # Start development server
 npm run dev
 ```
 
-The app will be running at `http://localhost:3000`
+The app will be running at `http://localhost:3000`. Without a `.env`, sign-in is disabled and only the demo is available.
+
+### Firebase Setup
+
+1. In the Firebase console, enable **Authentication** → Sign-in method → **Email/Password** and **Google**.
+2. Add every domain you serve the app from (e.g. `khaledahmed94ka.github.io`, your Render domain) under Authentication → Settings → **Authorized domains**.
+3. Create a **Firestore** database and deploy the security rules and index:
+
+```bash
+npx firebase-tools login
+npx firebase-tools deploy --only firestore --project <your-project-id>
+```
+
+### Local Development Against Emulators
+
+To work without touching the real project, start the Auth and Firestore emulators (needs Java 11+) and set `VITE_USE_FIREBASE_EMULATORS=true` in `.env`:
+
+```bash
+npx firebase-tools emulators:start --only auth,firestore --project demo-petution
+```
 
 ### Build for Production
 
@@ -191,7 +265,8 @@ npm run build
 1. Go to [dashboard.render.com](https://dashboard.render.com/)
 2. Click **New +** → **Blueprints**
 3. Select your repository `khaledahmed94ka/Petution-App`
-4. Render will automatically load `render.yaml` and launch your site!
+4. Render loads `render.yaml` and asks for the `VITE_FIREBASE_*` values (they are built into the app, so redeploy after changing them)
+5. `npm start` serves the built app. The prototype REST API is not exposed unless `ENABLE_MOCK_API=true`
 
 #### Option B: GitHub Pages
 
@@ -199,7 +274,19 @@ npm run build
 npm run deploy
 ```
 
-This runs `vite build` followed by `gh-pages -d dist`.
+This runs `vite build` followed by `gh-pages -d dist`. Your local `.env` supplies the Firebase settings for this build.
+
+---
+
+## 🧪 Testing
+
+```bash
+npm test               # Unit + screen tests (Vitest), no Firebase needed
+npm run test:e2e       # Browser tests in demo mode (Playwright)
+npm run test:emulator  # Security rules + browser tests against Firebase emulators (needs Java)
+```
+
+GitHub Actions runs all three on pushes to `main` and on pull requests (`.github/workflows/ci.yml`).
 
 ---
 
@@ -216,30 +303,25 @@ This runs `vite build` followed by `gh-pages -d dist`.
 
 ## 💾 Data Architecture
 
-All data is managed via React Context (`AppContext.jsx`) and persisted to `localStorage`:
+`AppContext.jsx` holds the session, the signed-in person's clinics, and a live mirror of the open clinic's data. Every change goes through one store.
 
-| Data | localStorage Key | Features |
-|------|-----------------|----------|
-| Clients | `petution_clients` | Add, search, tag filter, CSV import/export |
-| Pets | `petution_pets` | Add, species filter, microchip, blood group, health tracking, CSV import/export |
-| Visits | `petution_visits` | Add, state transitions, date/state filtering, SOAP notes |
-| Products | `petution_products` | Full CRUD, stock alerts, CSV import/export |
-| Invoices | `petution_invoices` | Add, status/date filtering, print receipt |
-| Expenses | `petution_expenses` | Add/delete, category filtering, date range |
-| Vaccines | `petution_vaccines` | Add/delete, linked to pets, passport view |
-| SOAP Notes | `petution_soap_notes` | Create/update, linked to visits, printable Rx |
-| Team | `petution_team` | Invite, role management, remove |
-| Settings | `petution_settings` | Organization profile, persisted |
-| Workspaces | `petution_workspaces` | Multi-clinic workspace switching & deletion |
-| Active Workspace | `petution_active_ws` | Currently selected workspace |
-| Stock Logs | `petution_stocklogs` | Automatic logging on product changes |
-| Notifications | `petution_notifications` | Bell icon, unread tracking |
-| Invitations | `petution_invitations` | Team invitation tracking |
-| User Auth | `petution_user` | Login state, email, name, provider |
+**Signed-in accounts (Firestore):**
+
+| Path | Contents |
+|------|----------|
+| `clinics/{clinicId}` | Clinic name, plan, founder (`ownerUid`) |
+| `clinics/{clinicId}/members/{uid}` | Who belongs to the clinic, and their role |
+| `clinics/{clinicId}/{collection}` | `clients`, `pets`, `visits`, `products`, `invoices`, `expenses`, `vaccines`, `soapNotes`, `reminders`, `stockLogs`, `notifications`, `settings/global` |
+| `invites/{inviteId}` | Invitations (clinic, email, role, status) |
+| `users/{uid}/…` | Where earlier versions stored data; moved into the first clinic once |
+
+**Demo mode:** the same collections in this browser's localStorage (`petution_demo_data_v1`), cleared on exit.
+
+Records saved in localStorage by much older versions (`petution_clients`, etc.) are not used any more. If real records are found, **Settings → Data Backup & Migration** offers to upload them into the open clinic or delete them.
 
 ### Full Backup & Restore
 
-Export all clinic data (clients, pets, visits, products, invoices, expenses, vaccines, SOAP notes, settings) as a single `.json` file from **Settings → Data Backup & Migration**. Restore by uploading the same file.
+Export all clinic data (every collection above plus settings) as a single `.json` file from **Settings → Data Backup & Migration**. Restoring merges the file into the clinic: records with the same ID are replaced by the backup's version, and nothing else is deleted. Team members and invitations are not restored; people rejoin through invitations.
 
 ---
 
@@ -251,9 +333,11 @@ Export all clinic data (clients, pets, visits, products, invoices, expenses, vac
 - [ ] WhatsApp API integration for Chats module
 - [ ] Online booking system
 - [ ] Reminder system (SMS/Email for vaccine boosters)
-- [ ] Database backend (Firebase / Supabase)
+- [x] ~~Database backend~~ → Firestore, with per-account security rules
 - [x] ~~Prescription templates~~ → Implemented as SOAP Notes & Rx Prescriptions
-- [x] ~~Multi-user authentication~~ → Implemented (Email, Google, Apple, Demo)
+- [x] ~~Multi-user authentication~~ → Implemented (Email, Google, plus a no-account demo)
+- [x] ~~Separate data per clinic, with roles~~ → Clinics, members, invitations and role-based security rules
+- [ ] Send invitation emails automatically (today the owner sends a prepared email)
 
 ---
 
