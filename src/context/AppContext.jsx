@@ -18,6 +18,7 @@ import { COLLECTIONS, emptyCollections, sortCollection } from '../data/collectio
 import { DEMO_USER } from '../data/demoSeed';
 import { newId, todayLocal, slugify } from '../utils/ids';
 import { normalizePhone } from '../utils/phone';
+import { calculateInvoice, stockUsage, newInvoiceNumber } from '../utils/invoice';
 
 const AppContext = createContext();
 
@@ -390,6 +391,14 @@ export const AppProvider = ({ children }) => {
     createRecord('stockLogs', 'log', { itemName, change, user: user?.name || '', date: todayLocal() });
   };
 
+  // delta < 0 takes items out of stock, delta > 0 puts them back.
+  const adjustStock = (productId, delta, reason) => {
+    const product = products.find(p => p.id === productId);
+    if (!store || !product || !delta) return;
+    persist(() => store.increment('products', productId, 'quantity', delta));
+    logStock(product.name, `${delta > 0 ? '+' : ''}${delta} units (${reason})`);
+  };
+
   // --- Workspaces & settings ---
   const updateSettings = (newSettings) => {
     const { id, ...fields } = newSettings;
@@ -480,7 +489,72 @@ export const AppProvider = ({ children }) => {
   const deleteProduct = (id) => removeRecord('products', id);
 
   // --- Billing & expenses ---
-  const addInvoice = (invData) => createRecord('invoices', 'inv', { ...invData, createdAt: todayLocal() });
+  // items: [{ productId, name, type, quantity, unitPrice }]. Products leave stock when the
+  // invoice is created (unless it starts cancelled) and return if it is cancelled later.
+  const addInvoice = (invData) => {
+    const items = (invData.items || []).map(item => ({
+      productId: item.productId,
+      name: item.name,
+      type: item.type || 'product',
+      quantity: Number(item.quantity) || 0,
+      unitPrice: Number(item.unitPrice) || 0
+    }));
+    const totals = calculateInvoice(items, invData.discountType, invData.discountValue, invData.taxPercentage);
+    const pet = pets.find(p => p.id === invData.petId);
+    const status = invData.status || 'pending';
+    const takesStock = status !== 'cancelled';
+    const today = todayLocal();
+
+    const invoice = createRecord('invoices', 'inv', {
+      number: newInvoiceNumber(),
+      petId: invData.petId || '',
+      clientId: invData.clientId || pet?.owners?.[0] || '',
+      visitId: invData.visitId || '',
+      items,
+      status,
+      discountType: invData.discountType || 'none',
+      discountValue: Number(invData.discountValue) || 0,
+      taxPercentage: Number(invData.taxPercentage) || 0,
+      ...totals,
+      stockDeducted: takesStock,
+      paidAt: status === 'paid' ? today : null,
+      createdAt: today
+    });
+    if (!invoice || !takesStock) return invoice;
+
+    const label = `Invoice ${invoice.number}`;
+    stockUsage(items).forEach(({ productId, quantity }) => adjustStock(productId, -quantity, label));
+
+    // Refill / booster reminders for items that have a reminder interval.
+    items.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      if (!product?.reminderDays) return;
+      const due = new Date();
+      due.setDate(due.getDate() + Number(product.reminderDays));
+      addReminder({
+        clientId: invoice.clientId,
+        petId: invoice.petId,
+        productId: product.id,
+        productName: product.name,
+        invoiceId: invoice.id,
+        dueDate: todayLocal(due)
+      });
+    });
+    return invoice;
+  };
+
+  const setInvoiceStatus = (id, status) => {
+    const invoice = invoices.find(inv => inv.id === id);
+    if (!invoice || invoice.status === status || invoice.status === 'cancelled') return;
+    const changes = { status };
+    if (status === 'paid') changes.paidAt = todayLocal();
+    if (status === 'cancelled' && invoice.stockDeducted) {
+      stockUsage(invoice.items).forEach(({ productId, quantity }) =>
+        adjustStock(productId, quantity, `Invoice ${invoice.number || invoice.id} cancelled`));
+      changes.stockDeducted = false;
+    }
+    updateRecord('invoices', id, changes);
+  };
 
   const addExpense = (expData) => createRecord('expenses', 'exp', { ...expData, date: expData.date || todayLocal() });
 
@@ -687,6 +761,7 @@ export const AppProvider = ({ children }) => {
         stockLogs,
         invoices,
         addInvoice,
+        setInvoiceStatus,
         importFullBackup,
         expenses,
         addExpense,

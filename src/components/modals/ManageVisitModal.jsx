@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, User, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Calendar, Clock, User, FileText, CheckCircle2, AlertCircle, Receipt } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const ManageVisitModal = ({ visit, onClose }) => {
@@ -93,6 +93,17 @@ export const ManageVisitModal = ({ visit, onClose }) => {
             >
               <FileText size={14} className="text-teal" /> Open SOAP Note & Rx
             </button>
+            <button 
+              type="button" 
+              className="btn-secondary text-xs flex items-center gap-xs"
+              onClick={() => {
+                onClose();
+                setActiveModalItem({ invoiceForVisit: visit.id });
+                setActiveDrawer('addInvoice');
+              }}
+            >
+              <Receipt size={14} className="text-teal" /> Create Invoice
+            </button>
             <div className="flex gap-xs">
               <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
               <button type="submit" className="btn-primary">Save Changes</button>
@@ -112,7 +123,7 @@ export const ManageVisitModal = ({ visit, onClose }) => {
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .close-btn { background: none; border: none; color: #94a3b8; cursor: pointer; }
         .pet-info-box { padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
-        .modal-actions-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+        .modal-actions-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
         .margin-bottom-sm { margin-bottom: 12px; }
         .margin-bottom-md { margin-bottom: 16px; }
         .margin-top-md { margin-top: 16px; }

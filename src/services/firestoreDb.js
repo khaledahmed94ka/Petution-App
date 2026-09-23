@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, writeBatch, increment } from 'firebase/firestore';
 import { db } from './firebaseAuth';
 import { COLLECTIONS } from '../data/collections';
 
@@ -35,6 +35,9 @@ export const createCloudStore = (uid) => {
     update: (name, id, changes) => setDoc(docRef(name, id), changes, { merge: true }),
 
     remove: (name, id) => deleteDoc(docRef(name, id)),
+
+    // Atomic on the server, so two devices selling the same item can't overwrite each other.
+    increment: (name, id, field, delta) => updateDoc(docRef(name, id), { [field]: increment(delta) }),
 
     async setMany(name, items) {
       for (let start = 0; start < items.length; start += BATCH_SIZE) {

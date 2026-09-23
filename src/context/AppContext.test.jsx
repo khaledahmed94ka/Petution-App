@@ -140,3 +140,63 @@ describe('AppProvider saving', () => {
     expect(app.doctorNames).toEqual(['Demo Vet', 'Dr. New Vet']);
   });
 });
+
+describe('AppProvider invoices', () => {
+  const vaccineLine = { productId: 'prod-1', name: 'Feline Rabies Vaccine', type: 'product', quantity: 2, unitPrice: 350 };
+  const examLine = { productId: 'serv-1', name: 'General Examination & Consultation', type: 'service', quantity: 1, unitPrice: 500 };
+  const stockOf = (id) => app.products.find(p => p.id === id).quantity;
+
+  it('saves line items and totals, takes products out of stock, and leaves services alone', async () => {
+    mount();
+    await openDemo();
+    const reminderCount = app.reminders.length;
+    let invoice;
+    act(() => {
+      invoice = app.addInvoice({ petId: 'pet-1', items: [vaccineLine, examLine], discountType: 'percentage', discountValue: 10, taxPercentage: 14 });
+    });
+
+    const saved = app.invoices.find(i => i.id === invoice.id);
+    expect(saved).toMatchObject({ clientId: 'cli-1', status: 'pending', subtotal: 1200, discountAmount: 120, taxAmount: 151.2, totalAmount: 1231.2, stockDeducted: true });
+    expect(saved.items).toHaveLength(2);
+    expect(saved.number).toMatch(/^INV-\d{8}-/);
+    expect(stockOf('prod-1')).toBe(43);
+    expect(stockOf('serv-1')).toBe(999);
+    expect(app.stockLogs[0].change).toBe(`-2 units (Invoice ${saved.number})`);
+    expect(app.reminders).toHaveLength(reminderCount);
+  });
+
+  it('cancelling returns products to stock once; marking paid records the date', async () => {
+    mount();
+    await openDemo();
+    let invoice;
+    act(() => { invoice = app.addInvoice({ petId: 'pet-1', items: [vaccineLine] }); });
+    act(() => app.setInvoiceStatus(invoice.id, 'paid'));
+    expect(app.invoices.find(i => i.id === invoice.id)).toMatchObject({ status: 'paid' });
+    expect(app.invoices.find(i => i.id === invoice.id).paidAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    act(() => app.setInvoiceStatus(invoice.id, 'cancelled'));
+    act(() => app.setInvoiceStatus(invoice.id, 'cancelled'));
+    expect(stockOf('prod-1')).toBe(45);
+    expect(app.invoices.find(i => i.id === invoice.id)).toMatchObject({ status: 'cancelled', stockDeducted: false });
+
+    act(() => app.setInvoiceStatus(invoice.id, 'paid'));
+    expect(app.invoices.find(i => i.id === invoice.id).status).toBe('cancelled');
+  });
+
+  it('an invoice created as cancelled never touches stock', async () => {
+    mount();
+    await openDemo();
+    act(() => { app.addInvoice({ petId: 'pet-1', items: [vaccineLine], status: 'cancelled' }); });
+    expect(stockOf('prod-1')).toBe(45);
+  });
+
+  it('creates a refill reminder for items with a reminder interval', async () => {
+    mount();
+    await openDemo();
+    act(() => app.updateProduct('prod-1', { reminderDays: 365 }));
+    let invoice;
+    act(() => { invoice = app.addInvoice({ petId: 'pet-2', items: [{ ...vaccineLine, quantity: 1 }] }); });
+    const reminder = app.reminders.find(r => r.invoiceId === invoice.id);
+    expect(reminder).toMatchObject({ petId: 'pet-2', clientId: 'cli-2', productId: 'prod-1', status: 'pending' });
+  });
+});

@@ -122,7 +122,7 @@ export const MainApp = () => {
       {activeDrawer === 'addClient' && <AddClientDrawer />}
       {activeDrawer === 'addPet' && <AddPetDrawer />}
       {activeDrawer === 'addVisit' && <AddVisitDrawer />}
-      {activeDrawer === 'addInvoice' && <AddInvoiceDrawer />}
+      {activeDrawer === 'addInvoice' && <AddInvoiceDrawer visitId={activeModalItem?.invoiceForVisit} />}
       {activeDrawer === 'addExpense' && <AddExpenseDrawer />}
       {activeDrawer === 'addItem' && <AddItemDrawer />}
       {activeDrawer === 'inviteMember' && <InviteMemberDrawer />}

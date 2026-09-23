@@ -58,6 +58,12 @@ export const createDemoStore = (storage = window.localStorage) => {
 
     remove: (name, id) => write(name, (data[name] || []).filter(item => item.id !== id)),
 
+    increment: (name, id, field, delta) => {
+      const item = find(name, id);
+      if (!item) return Promise.reject(new Error(`${name}/${id} not found`));
+      return write(name, upsert(data[name], { ...item, [field]: (Number(item[field]) || 0) + delta }));
+    },
+
     setMany: (name, items) =>
       write(name, items.reduce((list, item) => upsert(list, { ...find(name, item.id), ...item }), data[name] || []))
   };

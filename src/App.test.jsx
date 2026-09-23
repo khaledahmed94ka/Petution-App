@@ -123,3 +123,36 @@ describe('phone numbers and WhatsApp', () => {
     expect(openSpy.mock.calls[0][0]).toMatch(/^https:\/\/wa\.me\/20\d+\?text=/);
   });
 });
+
+describe('invoice form', () => {
+  it('bills several items, shows the total, and warns before overselling', async () => {
+    const { container } = await renderDemo();
+    openDrawer('addInvoice', null);
+    const panel = container.querySelector('.drawer-panel');
+    fireEvent.change(panel.querySelector('select'), { target: { value: 'pet-2' } });
+    expect(within(panel).getByText('Owner: Sarah Mahmoud')).toBeTruthy();
+
+    fireEvent.change(within(panel).getByLabelText('Item 1'), { target: { value: 'prod-1' } });
+    fireEvent.change(within(panel).getByLabelText('Quantity 1'), { target: { value: '50' } });
+    expect(within(panel).getByText(/Only 45 in stock/)).toBeTruthy();
+    fireEvent.change(within(panel).getByLabelText('Quantity 1'), { target: { value: '2' } });
+
+    fireEvent.click(within(panel).getByRole('button', { name: /Add item/ }));
+    fireEvent.change(within(panel).getByLabelText('Item 2'), { target: { value: 'serv-1' } });
+    expect(within(panel).getByTestId('invoice-total').textContent).toBe('EGP 1368.00');
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Create Invoice' }));
+    const invoice = app.invoices[0];
+    expect(invoice.items.map(i => `${i.quantity} ${i.productId}`)).toEqual(['2 prod-1', '1 serv-1']);
+    expect(invoice.clientId).toBe('cli-2');
+    expect(app.products.find(p => p.id === 'prod-1').quantity).toBe(43);
+  });
+
+  it('starting from a visit pre-selects that visit\'s pet', async () => {
+    const { container } = await renderDemo();
+    openDrawer('addInvoice', { invoiceForVisit: 'vis-1' });
+    const [petSelect, visitSelect] = container.querySelector('.drawer-panel').querySelectorAll('select');
+    expect(petSelect.value).toBe('pet-1');
+    expect(visitSelect.value).toBe('vis-1');
+  });
+});

@@ -8,6 +8,8 @@ vi.mock('firebase/firestore', () => ({
   doc: (_db, ...segments) => ({ path: segments.join('/') }),
   collection: (_db, ...segments) => ({ path: segments.join('/') }),
   setDoc: vi.fn(async (ref, data, options) => { calls.setDoc.push({ path: ref.path, data, options }); }),
+  updateDoc: vi.fn(async (ref, data) => { calls.setDoc.push({ path: ref.path, data, options: 'update' }); }),
+  increment: (delta) => ({ increment: delta }),
   deleteDoc: vi.fn(async (ref) => { calls.deleteDoc.push(ref.path); }),
   writeBatch: () => {
     const batch = { writes: [] };
@@ -44,6 +46,11 @@ describe('cloud store', () => {
     expect(calls.setDoc[0]).toMatchObject({ path: 'users/uid-123/clients/c1', data: { id: 'c1', name: 'A' } });
     expect(calls.setDoc[1]).toMatchObject({ path: 'users/uid-123/visits/v1', options: { merge: true } });
     expect(calls.deleteDoc).toEqual(['users/uid-123/pets/p1']);
+  });
+
+  it('adjusts stock with an atomic increment', async () => {
+    await createCloudStore('uid-123').increment('products', 'prod-1', 'quantity', -2);
+    expect(calls.setDoc[0]).toEqual({ path: 'users/uid-123/products/prod-1', data: { quantity: { increment: -2 } }, options: 'update' });
   });
 
   it('listens to every collection and uses the document ID as the record ID', () => {

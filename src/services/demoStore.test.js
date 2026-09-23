@@ -48,6 +48,14 @@ describe('demo store', () => {
     expect(latest.clients.some(c => c.id === 'cli-9')).toBe(true);
   });
 
+  it('increment adjusts a number field and rejects unknown records', async () => {
+    const store = createDemoStore();
+    const { latest } = collect(store);
+    await store.increment('products', 'prod-1', 'quantity', -3);
+    expect(latest.products.find(p => p.id === 'prod-1').quantity).toBe(42);
+    await expect(store.increment('products', 'missing', 'quantity', 1)).rejects.toThrow('not found');
+  });
+
   it('clearDemoData resets to the sample clinic', async () => {
     await createDemoStore().set('clients', { id: 'c-new', name: 'Temp' });
     clearDemoData();

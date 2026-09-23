@@ -51,7 +51,7 @@ test('a printed receipt shows record text as text, never as HTML', async ({ page
   await goTo(page, 'Invoices');
   await page.getByRole('button', { name: 'Add Invoice' }).click();
   await page.locator('.drawer-panel select').nth(0).selectOption({ label: evilName });
-  await page.locator('.drawer-panel select').nth(3).selectOption({ index: 1 });
+  await page.getByLabel('Item 1').selectOption({ index: 1 });
   await page.getByRole('button', { name: 'Create Invoice' }).click();
 
   const [receipt] = await Promise.all([
@@ -61,4 +61,46 @@ test('a printed receipt shows record text as text, never as HTML', async ({ page
   await expect(receipt.getByText(`Pet: ${evilName}`)).toBeVisible();
   await expect(receipt.locator('img')).toHaveCount(0);
   expect(await page.evaluate(() => window.__pwned === true)).toBe(false);
+});
+
+test('billing a visit takes stock, prints the items, and cancelling returns the stock', async ({ page, context }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Open Demo/ }).click();
+  const vaccineRow = () => page.locator('tbody tr', { hasText: 'Feline Rabies Vaccine' });
+
+  await goTo(page, 'Products & Services');
+  await expect(vaccineRow().locator('td').nth(3)).toHaveText('45');
+
+  await goTo(page, 'Visits');
+  await page.locator('tbody tr', { hasText: 'Milo' }).getByRole('button', { name: 'Manage Visit' }).click();
+  await page.getByRole('button', { name: /Create Invoice/ }).click();
+  await page.getByLabel('Item 1').selectOption({ label: 'Feline Rabies Vaccine (45 in stock)' });
+  await page.getByLabel('Quantity 1').fill('3');
+  await page.getByRole('button', { name: /Add item/ }).click();
+  await page.getByLabel('Item 2').selectOption({ label: 'General Examination & Consultation' });
+  await expect(page.getByTestId('invoice-total')).toHaveText('EGP 1767.00');
+  await page.getByRole('button', { name: 'Create Invoice' }).click();
+
+  await goTo(page, 'Invoices');
+  const invoiceRow = page.locator('tbody tr').first();
+  await expect(invoiceRow).toContainText('3× Feline Rabies Vaccine, 1× General Examination & Consultation');
+  await invoiceRow.getByRole('button', { name: /Mark Paid/ }).click();
+  await expect(invoiceRow.locator('.badge')).toHaveText('paid');
+
+  const [receipt] = await Promise.all([
+    context.waitForEvent('page'),
+    invoiceRow.getByRole('button', { name: 'Print Receipt' }).click()
+  ]);
+  await expect(receipt.locator('td', { hasText: 'Feline Rabies Vaccine' })).toBeVisible();
+  await expect(receipt.getByText('Total Amount: 1767.00 EGP')).toBeVisible();
+  await receipt.close();
+
+  await goTo(page, 'Products & Services');
+  await expect(vaccineRow().locator('td').nth(3)).toHaveText('42');
+
+  await goTo(page, 'Invoices');
+  await page.locator('tbody tr').first().getByRole('button', { name: /Cancel/ }).click();
+  await expect(page.locator('tbody tr').first().locator('.badge')).toHaveText('cancelled');
+  await goTo(page, 'Products & Services');
+  await expect(vaccineRow().locator('td').nth(3)).toHaveText('45');
 });
