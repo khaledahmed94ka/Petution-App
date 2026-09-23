@@ -31,13 +31,15 @@ import { AddVaccineDrawer } from './components/drawers/AddVaccineDrawer';
 import { SOAPNoteDrawer } from './components/drawers/SOAPNoteDrawer';
 import { StatusScreen } from './components/StatusScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ClinicSetupView } from './views/ClinicSetupView';
+import { ROLES, canOpenPage } from './data/permissions';
 import { X, LogOut, ShieldCheck } from 'lucide-react';
 
 export const MainApp = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const {
-    user, authStatus, dataStatus, dataError, isDemo, logout,
+    user, authStatus, accountStatus, dataStatus, dataError, isDemo, logout, role, previewRole,
     activeTab, setActiveTab, activeDrawer, setActiveDrawer, activeModalItem, isEmbedded
   } = useApp();
 
@@ -49,7 +51,19 @@ export const MainApp = () => {
     return <LoginView />;
   }
 
-  if (dataStatus === 'error') {
+  if (accountStatus === 'loading') {
+    return <StatusScreen busy title="Loading your clinics…" />;
+  }
+
+  if (accountStatus === 'settingUp') {
+    return <StatusScreen busy title="Opening your clinic…" message="Setting things up. If you used Petution before, your records are being moved in." />;
+  }
+
+  if (accountStatus === 'needsClinic') {
+    return <ClinicSetupView />;
+  }
+
+  if (accountStatus === 'error' || dataStatus === 'error') {
     return (
       <StatusScreen
         title="Couldn't load your clinic data"
@@ -72,6 +86,14 @@ export const MainApp = () => {
   }
 
   const renderView = () => {
+    if (!canOpenPage(role, activeTab)) {
+      return (
+        <div className="card" role="alert">
+          <h3>You don't have access to this page</h3>
+          <p className="text-muted margin-top-xs">Your role in this clinic is {role}. Ask the clinic owner if you need access.</p>
+        </div>
+      );
+    }
     switch (activeTab) {
       case 'dashboard': return <DashboardView />;
       case 'clients': return <ClientsView />;
@@ -168,6 +190,16 @@ export const MainApp = () => {
                   </div>
                 </div>
               </div>
+
+              {previewRole && (
+                <div className="form-group">
+                  <label>Demo: see the app as</label>
+                  <select className="form-control" value={role} onChange={(e) => previewRole(e.target.value)}>
+                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <span className="text-xs text-muted">Pages and actions change to what this role may do.</span>
+                </div>
+              )}
 
               <div className="margin-top-lg border-top pt-md flex flex-col gap-sm">
                 <button 

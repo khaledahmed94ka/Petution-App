@@ -9,7 +9,7 @@ export const SettingsView = () => {
   const app = useApp();
   const {
     settings, setSettings, clients, pets, visits, products, invoices, expenses, vaccines, soapNotes,
-    importFullBackup, deleteWorkspace, activeWorkspaceId, isDemo,
+    importFullBackup, deleteWorkspace, activeWorkspaceId, isDemo, workspaces,
     legacyData, importLegacyLocalData, discardLegacyLocalData
   } = app;
   const [formData, setFormData] = useState({ ...settings });
@@ -189,7 +189,8 @@ export const SettingsView = () => {
             </div>
           </form>
 
-          {/* Danger Zone: Delete Clinic Workspace */}
+          {/* Danger Zone: Delete Clinic Workspace (only the person who created it) */}
+          {workspaces.find(w => w.id === activeWorkspaceId)?.isFounder && !isDemo && (
           <div className="danger-zone-card margin-top-lg">
             <h4 className="font-semibold text-rose flex items-center gap-xs">
               <AlertTriangle size={18} /> Danger Zone: Delete Clinic Workspace
@@ -212,6 +213,7 @@ export const SettingsView = () => {
               </button>
             </div>
           </div>
+          )}
         </div>
       ) : activeTab === 'Data Backup & Migration' ? (
         <div className="card settings-card">

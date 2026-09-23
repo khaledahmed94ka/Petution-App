@@ -4,7 +4,8 @@ import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/dataExportImport';
 
 export const ProductsView = () => {
-  const { products, stockLogs, setActiveDrawer, setActiveModalItem } = useApp();
+  const { products, stockLogs, setActiveDrawer, setActiveModalItem, can } = useApp();
+  const canManage = can('manageInventory');
   const [activeTab, setActiveTab] = useState('products');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -51,13 +52,17 @@ export const ProductsView = () => {
           <button className="btn-secondary" onClick={handleExport} title="Export Products CSV">
             <Download size={16} /> Export CSV
           </button>
-          <button className="btn-secondary" onClick={() => setActiveDrawer('importProducts')} title="Import Products CSV">
-            <Upload size={16} /> Import CSV
-          </button>
-          <button className="btn-primary" onClick={handleOpenAdd}>
-            <Plus size={18} />
-            Add Item
-          </button>
+          {canManage && (
+            <>
+              <button className="btn-secondary" onClick={() => setActiveDrawer('importProducts')} title="Import Products CSV">
+                <Upload size={16} /> Import CSV
+              </button>
+              <button className="btn-primary" onClick={handleOpenAdd}>
+                <Plus size={18} />
+                Add Item
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -172,9 +177,11 @@ export const ProductsView = () => {
                     <td>{srv.reminderDays ? `${srv.reminderDays} days` : '—'}</td>
                     <td className="text-muted">{srv.notes || '—'}</td>
                     <td>
-                      <button className="btn-secondary text-xs" onClick={() => handleEditItem(srv)}>
-                        Edit
-                      </button>
+                      {canManage ? (
+                        <button className="btn-secondary text-xs" onClick={() => handleEditItem(srv)}>
+                          Edit
+                        </button>
+                      ) : '—'}
                     </td>
                   </tr>
                 ))
@@ -222,9 +229,11 @@ export const ProductsView = () => {
                     <td>{prod.reminderDays ? `${prod.reminderDays} days` : '—'}</td>
                     <td>{prod.alertThreshold}</td>
                     <td>
-                      <button className="btn-secondary text-xs" onClick={() => handleEditItem(prod)}>
-                        Edit
-                      </button>
+                      {canManage ? (
+                        <button className="btn-secondary text-xs" onClick={() => handleEditItem(prod)}>
+                          Edit
+                        </button>
+                      ) : '—'}
                     </td>
                   </tr>
                 ))

@@ -9,7 +9,8 @@ const vitalOrNull = (value) => (value === '' || value === null || value === unde
 const showVital = (value, unit) => (value === '' || value === null || value === undefined ? '—' : `${value} ${unit}`);
 
 export const SOAPNoteDrawer = ({ visitId }) => {
-  const { setActiveDrawer, visits, pets, clients, soapNotes, saveSOAPNote, settings, user } = useApp();
+  const { setActiveDrawer, visits, pets, clients, soapNotes, saveSOAPNote, settings, user, can } = useApp();
+  const readOnly = !can('writeMedical');
 
   const visit = visits.find(v => v.id === visitId);
   const pet = pets.find(p => p.id === visit?.petId);
@@ -126,8 +127,15 @@ export const SOAPNoteDrawer = ({ visitId }) => {
               </div>
             </div>
 
+            {readOnly && (
+              <p className="soap-readonly text-xs" role="status">
+                You can read this note. Only vets and owners can edit clinical notes and prescriptions.
+              </p>
+            )}
+
             {/* Form Editor */}
             <form onSubmit={handleSave} className="soap-form">
+              <fieldset disabled={readOnly} className="soap-fieldset">
               {/* S - Subjective */}
               <div className="form-group">
                 <label className="font-bold text-teal text-xs">S — SUBJECTIVE (Client Complaint & History)</label>
@@ -302,14 +310,18 @@ export const SOAPNoteDrawer = ({ visitId }) => {
                 </div>
               </div>
 
+              </fieldset>
+
               {/* Drawer Actions */}
               <div className="drawer-footer margin-top-lg no-print">
                 <button type="button" className="btn-secondary" onClick={() => setActiveDrawer(null)}>
-                  Cancel
+                  {readOnly ? 'Close' : 'Cancel'}
                 </button>
-                <button type="submit" className="btn-primary">
-                  Save SOAP Record & Rx
-                </button>
+                {!readOnly && (
+                  <button type="submit" className="btn-primary">
+                    Save SOAP Record & Rx
+                  </button>
+                )}
               </div>
             </form>
           </div>
@@ -318,6 +330,8 @@ export const SOAPNoteDrawer = ({ visitId }) => {
 
       <style>{`
         .soap-panel { max-width: 760px; }
+        .soap-fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
+        .soap-readonly { background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; }
         .rx-printable-card {
           background: #ffffff;
           border: 1px solid var(--border-card);

@@ -135,9 +135,23 @@ describe('AppProvider saving', () => {
   it('lists only Owner/Vet team members (and the signed-in user) as doctors', async () => {
     mount();
     await openDemo();
-    act(() => app.inviteMember({ name: 'Dr. New Vet', email: 'v@x.com', role: 'Vet' }));
-    act(() => app.inviteMember({ name: 'Front Desk', email: 'f@x.com', role: 'Receptionist' }));
-    expect(app.doctorNames).toEqual(['Demo Vet', 'Dr. New Vet']);
+    expect(app.doctorNames).toEqual(['Demo Vet', 'Dr. Sarah Mahmoud']);
+  });
+
+  it('an invitation is pending until accepted; it doesn\'t add a team member', async () => {
+    mount();
+    await openDemo();
+    const teamSize = app.team.length;
+    let invite;
+    act(() => { invite = app.inviteMember({ name: 'Dr. New Vet', email: ' New.Vet@Example.com ', role: 'Vet' }); });
+    expect(invite).toMatchObject({ email: 'new.vet@example.com', role: 'Vet', status: 'pending', clinicName: 'Petution Demo Clinic' });
+    expect(app.invitations.some(i => i.id === invite.id)).toBe(true);
+    expect(app.team).toHaveLength(teamSize);
+
+    act(() => { app.inviteMember({ name: 'Again', email: 'new.vet@example.com', role: 'Vet' }); });
+    act(() => { app.inviteMember({ name: 'Sarah', email: 'sarah.m@petution.com', role: 'Vet' }); });
+    expect(app.invitations.filter(i => i.email === 'new.vet@example.com')).toHaveLength(1);
+    expect(window.alert).toHaveBeenCalledWith('sarah.m@petution.com is already a member of this clinic.');
   });
 });
 

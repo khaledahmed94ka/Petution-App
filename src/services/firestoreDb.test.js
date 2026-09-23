@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const calls = vi.hoisted(() => ({ setDoc: [], deleteDoc: [], batches: [], listeners: [] }));
+const calls = vi.hoisted(() => ({ writes: [], deletes: [], batches: [], listeners: [] }));
 
 vi.mock('./firebaseAuth', () => ({ db: { fake: true } }));
 
 vi.mock('firebase/firestore', () => ({
   doc: (_db, ...segments) => ({ path: segments.join('/') }),
   collection: (_db, ...segments) => ({ path: segments.join('/') }),
-  setDoc: vi.fn(async (ref, data, options) => { calls.setDoc.push({ path: ref.path, data, options }); }),
-  updateDoc: vi.fn(async (ref, data) => { calls.setDoc.push({ path: ref.path, data, options: 'update' }); }),
+  query: (ref, ...filters) => ({ path: `${ref.path}?${filters.join('&')}` }),
+  where: (field, op, value) => `${field}${op}${value}`,
+  setDoc: vi.fn(async (ref, data, options) => { calls.writes.push({ path: ref.path, data, options }); }),
+  updateDoc: vi.fn(async (ref, data) => { calls.writes.push({ path: ref.path, data, options: 'update' }); }),
   increment: (delta) => ({ increment: delta }),
-  deleteDoc: vi.fn(async (ref) => { calls.deleteDoc.push(ref.path); }),
+  deleteDoc: vi.fn(async (ref) => { calls.deletes.push(ref.path); }),
   writeBatch: () => {
     const batch = { writes: [] };
     calls.batches.push(batch);
@@ -27,44 +29,61 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 const { createCloudStore } = await import('./firestoreDb');
-const { COLLECTIONS } = await import('../data/collections');
 
 describe('cloud store', () => {
   beforeEach(() => {
-    calls.setDoc.length = 0;
-    calls.deleteDoc.length = 0;
+    calls.writes.length = 0;
+    calls.deletes.length = 0;
     calls.batches.length = 0;
     calls.listeners.length = 0;
   });
 
-  it('keeps every read and write inside users/{uid}/', async () => {
-    const store = createCloudStore('uid-123');
-    await store.set('clients', { id: 'c1', name: 'A' });
-    await store.update('visits', 'v1', { state: 'completed' });
-    await store.remove('pets', 'p1');
+  const store = (role = 'Owner') => createCloudStore({ clinicId: 'clinic-1', role });
 
-    expect(calls.setDoc[0]).toMatchObject({ path: 'users/uid-123/clients/c1', data: { id: 'c1', name: 'A' } });
-    expect(calls.setDoc[1]).toMatchObject({ path: 'users/uid-123/visits/v1', options: { merge: true } });
-    expect(calls.deleteDoc).toEqual(['users/uid-123/pets/p1']);
+  it('keeps every record inside clinics/{clinicId}/', async () => {
+    await store().set('clients', { id: 'c1', name: 'A' });
+    await store().update('visits', 'v1', { state: 'completed' });
+    await store().remove('pets', 'p1');
+
+    expect(calls.writes[0]).toMatchObject({ path: 'clinics/clinic-1/clients/c1', data: { id: 'c1', name: 'A' } });
+    expect(calls.writes[1]).toMatchObject({ path: 'clinics/clinic-1/visits/v1', options: { merge: true } });
+    expect(calls.deletes).toEqual(['clinics/clinic-1/pets/p1']);
+  });
+
+  it('stores the team as members and invitations as top-level invites for the clinic', async () => {
+    await store().update('team', 'uid-9', { role: 'Vet' });
+    await store().set('invitations', { id: 'inv-1', email: 'a@b.com' });
+    expect(calls.writes[0].path).toBe('clinics/clinic-1/members/uid-9');
+    expect(calls.writes[1]).toMatchObject({ path: 'invites/inv-1', data: { email: 'a@b.com', clinicId: 'clinic-1' } });
   });
 
   it('adjusts stock with an atomic increment', async () => {
-    await createCloudStore('uid-123').increment('products', 'prod-1', 'quantity', -2);
-    expect(calls.setDoc[0]).toEqual({ path: 'users/uid-123/products/prod-1', data: { quantity: { increment: -2 } }, options: 'update' });
+    await store().increment('products', 'prod-1', 'quantity', -2);
+    expect(calls.writes[0]).toEqual({ path: 'clinics/clinic-1/products/prod-1', data: { quantity: { increment: -2 } }, options: 'update' });
   });
 
-  it('listens to every collection and uses the document ID as the record ID', () => {
+  it('only listens to what the role may read', () => {
     const received = {};
-    createCloudStore('uid-123').subscribe((name, docs, meta) => { received[name] = { docs, meta }; }, () => {});
-    expect(calls.listeners).toEqual(COLLECTIONS.map(name => `users/uid-123/${name}`));
-    expect(received.clients.docs).toEqual([{ name: 'From server', id: 'd1' }]);
-    expect(received.clients.meta).toEqual({ fromCache: false });
+    store('Receptionist').subscribe((name, docs) => { received[name] = docs; }, () => {});
+    expect(calls.listeners).toContain('clinics/clinic-1/clients');
+    expect(calls.listeners).toContain('clinics/clinic-1/members');
+    expect(calls.listeners).not.toContain('clinics/clinic-1/expenses');
+    expect(calls.listeners.some(path => path.startsWith('invites'))).toBe(false);
+    expect(received.expenses).toEqual([]);
+    expect(received.invitations).toEqual([]);
+    expect(received.clients).toEqual([{ name: 'From server', id: 'd1' }]);
+  });
+
+  it('an owner also listens to the clinic\'s pending invitations', () => {
+    store('Owner').subscribe(() => {}, () => {});
+    expect(calls.listeners).toContain('invites?clinicId==clinic-1&status==pending');
+    expect(calls.listeners).toContain('clinics/clinic-1/expenses');
   });
 
   it('splits large imports into batches under Firestore\'s 500-write limit', async () => {
     const items = Array.from({ length: 900 }, (_, i) => ({ id: `c${i}` }));
-    await createCloudStore('uid-123').setMany('clients', items);
+    await store().setMany('clients', items);
     expect(calls.batches.map(b => b.writes.length)).toEqual([400, 400, 100]);
-    expect(calls.batches[0].writes[0]).toMatchObject({ path: 'users/uid-123/clients/c0', options: { merge: true } });
+    expect(calls.batches[0].writes[0]).toMatchObject({ path: 'clinics/clinic-1/clients/c0', options: { merge: true } });
   });
 });

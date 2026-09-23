@@ -284,10 +284,12 @@ export const createDemoSeed = (today = todayLocal()) => {
       { id: 'rem-2', clientId: 'cli-2', petId: 'pet-2', productId: 'prod-2', productName: 'Deworming Tablets (Drontal)', dueDate: day(-3), status: 'pending', createdAt: day(-93) }
     ],
     team: [
-      { id: DEMO_USER.id, name: DEMO_USER.name, email: DEMO_USER.email, role: 'Owner', status: 'active' }
+      { id: DEMO_USER.id, name: DEMO_USER.name, email: DEMO_USER.email, role: 'Owner', status: 'active' },
+      { id: 'usr-sarah', name: 'Dr. Sarah Mahmoud', email: 'sarah.m@petution.com', role: 'Vet', status: 'active' },
+      { id: 'usr-nour', name: 'Nour Adel', email: 'nour@petution.com', role: 'Receptionist', status: 'active' }
     ],
     invitations: [
-      { id: 'invite-1', name: 'Dr. Sarah Mahmoud', email: 'sarah.m@petution.com', role: 'Vet', sentAt: day(-2), status: 'Pending' }
+      { id: 'invite-1', name: 'Dr. Omar Nabil', email: 'omar.n@petution.com', role: 'Vet', sentAt: day(-2), status: 'pending', clinicName: 'Petution Demo Clinic' }
     ],
     stockLogs: [
       { id: 'log-1', itemName: 'Feline Rabies Vaccine', change: '+45 units', user: DEMO_USER.name, date: day(-60) }

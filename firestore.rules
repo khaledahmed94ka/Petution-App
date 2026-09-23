@@ -1,12 +1,178 @@
 rules_version = '2';
 
-// Each account's clinic data lives under users/{uid}/ and only that signed-in user
-// may read or write it. Everything else is closed.
-// Deploy with: npx firebase-tools deploy --only firestore:rules --project <your-project-id>
+// Data layout
+//   clinics/{clinicId}                       clinic profile (name, ownerUid)
+//   clinics/{clinicId}/members/{uid}         who belongs to the clinic, and their role
+//   clinics/{clinicId}/{collection}/{docId}  the clinic's records
+//   invites/{inviteId}                       invitations, matched to the invitee's verified email
+//   users/{uid}/...                          per-user data from earlier versions (read for migration)
+//
+// Roles: Owner, Admin, Vet, Receptionist. src/data/permissions.js mirrors this table.
+// Deploy with: npx firebase-tools deploy --only firestore --project <your-project-id>
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function clinicPath(clinicId) {
+      return /databases/$(database)/documents/clinics/$(clinicId);
+    }
+
+    function memberPath(clinicId) {
+      return /databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid);
+    }
+
+    function isMember(clinicId) {
+      return signedIn() && exists(memberPath(clinicId));
+    }
+
+    function roleIn(clinicId, roles) {
+      return isMember(clinicId) && get(memberPath(clinicId)).data.role in roles;
+    }
+
+    // Writes check the state after the write, so a new clinic's first records can be
+    // created in the same batch as the owner's membership.
+    function roleAfterIn(clinicId, roles) {
+      return signedIn() && existsAfter(memberPath(clinicId))
+        && getAfter(memberPath(clinicId)).data.role in roles;
+    }
+
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function emailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function everyone() {
+      return ['Owner', 'Admin', 'Vet', 'Receptionist'];
+    }
+
+    // ---- Per-user area from earlier versions ----
     match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ---- Listing "my clinics" (collection-group query on members by uid) ----
+    match /{path=**}/members/{memberUid} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // ---- Clinics ----
+    match /clinics/{clinicId} {
+      allow read: if isMember(clinicId);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if roleIn(clinicId, ['Owner'])
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      // Only the founding owner deletes a clinic (co-owners can't remove the founder's membership,
+      // so a deletion started by them would stop half-way).
+      allow delete: if roleIn(clinicId, ['Owner']) && resource.data.ownerUid == request.auth.uid;
+
+      function foundingOwner() {
+        return request.resource.data.role == 'Owner'
+          && !exists(clinicPath(clinicId))
+          && getAfter(clinicPath(clinicId)).data.ownerUid == request.auth.uid;
+      }
+
+      // The invitation must be pending now and marked accepted by this same write.
+      function acceptingInvite() {
+        let invitePath = /databases/$(database)/documents/invites/$(request.resource.data.inviteId);
+        let invite = get(invitePath).data;
+        let inviteAfter = getAfter(invitePath).data;
+        return emailVerified()
+          && invite.clinicId == clinicId
+          && invite.email == myEmail()
+          && invite.status == 'pending'
+          && request.resource.data.role == invite.role
+          && inviteAfter.status == 'accepted'
+          && inviteAfter.acceptedUid == request.auth.uid;
+      }
+
+      function isClinicOwnerUid(uid) {
+        return get(clinicPath(clinicId)).data.ownerUid == uid;
+      }
+
+      match /members/{memberUid} {
+        allow read: if isMember(clinicId);
+
+        // You can only add yourself: as the owner of a clinic you are creating,
+        // or by accepting an invitation sent to your verified email.
+        allow create: if signedIn()
+          && memberUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.clinicId == clinicId
+          && (foundingOwner() || acceptingInvite());
+
+        // Owners change other members' roles (never the founding owner's).
+        // Members may update their own name/email, but not their role.
+        allow update: if request.resource.data.uid == resource.data.uid
+          && request.resource.data.clinicId == resource.data.clinicId
+          && (
+            (roleIn(clinicId, ['Owner']) && memberUid != request.auth.uid && !isClinicOwnerUid(memberUid))
+            || (memberUid == request.auth.uid && request.resource.data.role == resource.data.role)
+          );
+
+        // Owners remove others (never the founding owner). Anyone else may leave.
+        // The founding owner's membership goes only after the clinic itself is deleted.
+        allow delete: if (roleIn(clinicId, ['Owner']) && memberUid != request.auth.uid && !isClinicOwnerUid(memberUid))
+          || (memberUid == request.auth.uid && (resource.data.role != 'Owner' || !exists(clinicPath(clinicId))));
+      }
+
+      match /{collection}/{docId} {
+        allow read: if collection != 'members' && (
+          collection == 'expenses' ? roleIn(clinicId, ['Owner', 'Admin']) : isMember(clinicId)
+        );
+
+        allow create, update: if collection != 'members' && (
+          (collection in ['clients', 'pets', 'visits', 'invoices', 'reminders', 'notifications', 'stockLogs']
+            && roleAfterIn(clinicId, everyone()))
+          || (collection in ['soapNotes', 'vaccines'] && roleAfterIn(clinicId, ['Owner', 'Vet']))
+          || (collection in ['products', 'expenses'] && roleAfterIn(clinicId, ['Owner', 'Admin']))
+          // Selling an item takes it out of stock, so every role may change a product's quantity only.
+          || (collection == 'products' && request.method == 'update'
+            && roleAfterIn(clinicId, everyone())
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity']))
+          || (collection == 'settings' && roleAfterIn(clinicId, ['Owner']))
+        );
+
+        allow delete: if collection != 'members' && (
+          roleIn(clinicId, ['Owner'])
+          || (collection in ['soapNotes', 'vaccines'] && roleIn(clinicId, ['Vet']))
+          || (collection in ['products', 'expenses'] && roleIn(clinicId, ['Admin']))
+        );
+      }
+    }
+
+    // ---- Invitations ----
+    match /invites/{inviteId} {
+      allow read: if signedIn() && (
+        resource.data.email == myEmail() || roleIn(resource.data.clinicId, ['Owner'])
+      );
+
+      allow create: if roleIn(request.resource.data.clinicId, ['Owner'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.email == request.resource.data.email.lower()
+        && request.resource.data.role in everyone();
+
+      // Owners may edit or withdraw; the invitee may only accept (while joining) or decline.
+      allow update: if roleIn(resource.data.clinicId, ['Owner'])
+        || (
+          resource.data.email == myEmail()
+          && emailVerified()
+          && resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedUid', 'respondedTs'])
+          && (
+            request.resource.data.status == 'declined'
+            || (request.resource.data.status == 'accepted'
+              && request.resource.data.acceptedUid == request.auth.uid
+              && existsAfter(/databases/$(database)/documents/clinics/$(resource.data.clinicId)/members/$(request.auth.uid)))
+          )
+        );
+
+      allow delete: if roleIn(resource.data.clinicId, ['Owner']);
     }
   }
 }

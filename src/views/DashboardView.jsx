@@ -12,7 +12,7 @@ import { dashboardMetrics } from '../utils/metrics';
 const formatMoney = (value) => `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} EGP`;
 
 export const DashboardView = () => {
-  const { user, clients, pets, visits, invoices, products, reminders, expenses = [], settings, team, invitations, setActiveDrawer, setActiveTab } = useApp();
+  const { user, clients, pets, visits, invoices, products, reminders, expenses = [], settings, team, invitations, setActiveDrawer, setActiveTab, can } = useApp();
   const [showOnboarding, setShowOnboarding] = React.useState(true);
 
   const hour = new Date().getHours();
@@ -22,7 +22,7 @@ export const DashboardView = () => {
   const change = metrics.revenueChange;
 
   // Calculate Onboarding Tasks Completion
-  const onboardingTasks = [
+  const allOnboardingTasks = [
     {
       id: 'task-client',
       title: 'Add Customer',
@@ -94,6 +94,10 @@ export const DashboardView = () => {
       action: () => setActiveDrawer('inviteMember')
     }
   ];
+
+  // Only the steps this role can do.
+  const stepPermission = { 'task-prod': 'manageInventory', 'task-expense': 'viewFinances', 'task-hours': 'manageClinic', 'task-team': 'manageTeam' };
+  const onboardingTasks = allOnboardingTasks.filter(task => !stepPermission[task.id] || can(stepPermission[task.id]));
 
   const completedCount = onboardingTasks.filter(t => t.completed).length;
   const progressPercent = Math.round((completedCount / onboardingTasks.length) * 100);

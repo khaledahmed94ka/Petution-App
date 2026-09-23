@@ -8,15 +8,32 @@ import {
   signInWithEmail,
   signUpWithEmail,
   sendPasswordReset,
-  signOutUser
+  signOutUser,
+  resendVerificationEmail,
+  refreshSignedInUser
 } from '../services/firebaseAuth';
 import { createCloudStore } from '../services/firestoreDb';
+import {
+  watchMemberships,
+  watchClinic,
+  watchInvitesFor,
+  createClinic,
+  updateClinicProfile,
+  acceptInvite,
+  declineInvite,
+  leaveClinic,
+  deleteClinic,
+  readLegacyAccountData,
+  copyLegacyDataToClinic,
+  markLegacyMigrated
+} from '../services/clinicDirectory';
 import { createDemoStore, clearDemoData } from '../services/demoStore';
 import { readLegacyLocalData, clearLegacyLocalData, pruneLegacyLocalData } from '../services/legacyLocalData';
 import { syncToShopify } from '../services/shopifySync';
-import { COLLECTIONS, emptyCollections, sortCollection } from '../data/collections';
+import { COLLECTIONS, DEFAULT_SETTINGS, emptyCollections, sortCollection } from '../data/collections';
+import { ROLES, can as roleCan } from '../data/permissions';
 import { DEMO_USER } from '../data/demoSeed';
-import { newId, todayLocal, slugify } from '../utils/ids';
+import { newId, todayLocal } from '../utils/ids';
 import { normalizePhone } from '../utils/phone';
 import { calculateInvoice, stockUsage, newInvoiceNumber } from '../utils/invoice';
 
@@ -24,15 +41,8 @@ const AppContext = createContext();
 
 const DEMO_SESSION_KEY = 'petution_demo_session';
 
-const DEFAULT_SETTINGS = {
-  orgName: 'My Clinic',
-  slug: 'my-clinic',
-  phone: '',
-  address: '',
-  website: '',
-  shopifyShop: '',
-  shopifySyncEnabled: false
-};
+// Which clinic a user last worked in, per user (not sensitive: just an ID).
+const activeClinicKey = (uid) => `petution_active_clinic:${uid}`;
 
 const DOCTOR_ROLES = ['owner', 'vet'];
 
@@ -61,10 +71,29 @@ const readUrlParam = (name) => {
   }
 };
 
+const readActiveClinic = (uid) => {
+  try {
+    return localStorage.getItem(activeClinicKey(uid));
+  } catch {
+    return null;
+  }
+};
+
+const writeActiveClinic = (uid, clinicId) => {
+  try {
+    localStorage.setItem(activeClinicKey(uid), clinicId);
+  } catch {
+    // Storage blocked: the choice only lasts for this page load.
+  }
+};
+
 const describeSaveError = (err) =>
   err?.code === 'permission-denied'
     ? 'The server refused to save a change (permission denied). Sign out, sign in again, and retry.'
     : `A change could not be saved: ${err?.message || err}`;
+
+// People join a clinic only by accepting an invitation, so backups never restore these.
+const NOT_RESTORED = ['settings', 'team', 'invitations', 'workspaces'];
 
 // Firestore document IDs cannot contain "/"; anything else from an import is kept.
 const safeId = (id, prefix) => (typeof id === 'string' && id.trim() && !id.includes('/') ? id : newId(prefix));
@@ -158,52 +187,24 @@ const formatImportedProduct = (p, now) => {
   };
 };
 
-// Creates what a brand-new account needs: clinic settings, one workspace, and the
-// owner in the team list. Runs once per sign-in, after the first server snapshot.
-const bootstrapAccount = async (store, current, user, pendingSignup) => {
-  if (!user) return;
-  const now = Date.now();
-  const ownerName = pendingSignup?.name || user.name;
-  const existingSettings = current.settings.find(s => s.id === 'global');
-  const clinicName = existingSettings?.orgName || pendingSignup?.clinicName || DEFAULT_SETTINGS.orgName;
-  const writes = [];
-
-  let workspaceId = existingSettings?.activeWorkspaceId || current.workspaces[0]?.id;
-  if (!current.workspaces.length) {
-    workspaceId = newId('ws');
-    writes.push(store.set('workspaces', { id: workspaceId, name: clinicName, slug: slugify(clinicName), plan: 'Trial Plan', createdTs: now }));
-  }
-
-  if (!existingSettings) {
-    writes.push(store.set('settings', {
-      ...DEFAULT_SETTINGS,
-      id: 'global',
-      orgName: clinicName,
-      slug: slugify(clinicName),
-      activeWorkspaceId: workspaceId
-    }));
-    writes.push(store.set('notifications', {
-      id: newId('n'),
-      title: `Welcome to Petution, ${ownerName}!`,
-      time: todayLocal(),
-      read: false,
-      createdTs: now
-    }));
-  } else if (!existingSettings.activeWorkspaceId) {
-    writes.push(store.update('settings', 'global', { activeWorkspaceId: workspaceId }));
-  }
-
-  if (!current.team.some(member => member.id === user.id)) {
-    writes.push(store.set('team', { id: user.id, name: ownerName, email: user.email, role: 'Owner', status: 'active', createdTs: now }));
-  }
-
-  await Promise.all(writes);
-};
-
 export const AppProvider = ({ children }) => {
   // --- Session ---
   const [authStatus, setAuthStatus] = useState('loading'); // loading | ready
-  const [user, setUser] = useState(null);
+  const [authUser, setAuthUser] = useState(null); // signed-in person, without a clinic role
+  const [isDemo, setIsDemo] = useState(false);
+  const [demoRole, setDemoRole] = useState('Owner');
+
+  // --- Clinics this user belongs to (accounts only) ---
+  const [memberships, setMemberships] = useState([]);
+  const [membershipStatus, setMembershipStatus] = useState('idle'); // idle | loading | ready | error
+  const [clinicDocs, setClinicDocs] = useState({});
+  const [myInvites, setMyInvites] = useState([]);
+  const [invitesStatus, setInvitesStatus] = useState('idle'); // idle | loading | ready
+  const [activeClinicId, setActiveClinicId] = useState(null);
+  const [setupStatus, setSetupStatus] = useState('idle'); // idle | working | error
+  const [setupError, setSetupError] = useState(null);
+  // The uid whose first-clinic decision was made (auto-create, or leave it to the person).
+  const [setupDecidedFor, setSetupDecidedFor] = useState(null);
   const [store, setStore] = useState(null);
 
   // --- Clinic data (mirrors the store; never edited directly) ---
@@ -221,15 +222,14 @@ export const AppProvider = ({ children }) => {
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const storeOwnerRef = useRef(null);
   const demoActiveRef = useRef(false);
   const pendingSignupRef = useRef(null);
-  const bootstrappedStoreRef = useRef(null);
-  const userRef = useRef(null);
+  const pendingClinicRef = useRef(null); // clinic to open as soon as its membership arrives
+  const authUserRef = useRef(null);
 
   useEffect(() => {
-    userRef.current = user;
-  }, [user]);
+    authUserRef.current = authUser;
+  }, [authUser]);
 
   const resetUi = useCallback(() => {
     setActiveDrawer(null);
@@ -238,28 +238,38 @@ export const AppProvider = ({ children }) => {
     setShowNotifications(false);
   }, []);
 
+  const resetAccount = useCallback(() => {
+    setMemberships([]);
+    setMembershipStatus('idle');
+    setClinicDocs({});
+    setMyInvites([]);
+    setInvitesStatus('idle');
+    setActiveClinicId(null);
+    setSetupStatus('idle');
+    setSetupError(null);
+    setSetupDecidedFor(null);
+    setStore(null);
+    pendingClinicRef.current = null;
+  }, []);
+
   const openDemo = useCallback(() => {
     demoActiveRef.current = true;
-    storeOwnerRef.current = DEMO_USER.id;
-    setUser(DEMO_USER);
+    setIsDemo(true);
+    setDemoRole('Owner');
+    setAuthUser(DEMO_USER);
     setStore(createDemoStore());
   }, []);
 
   const applyFirebaseUser = useCallback((firebaseUser) => {
     if (demoActiveRef.current) return;
     if (!firebaseUser) {
-      storeOwnerRef.current = null;
-      setUser(null);
-      setStore(null);
+      setAuthUser(null);
+      resetAccount();
       resetUi();
       return;
     }
-    setUser(toAppUser(firebaseUser));
-    if (storeOwnerRef.current !== firebaseUser.uid) {
-      storeOwnerRef.current = firebaseUser.uid;
-      setStore(createCloudStore(firebaseUser.uid));
-    }
-  }, [resetUi]);
+    setAuthUser(toAppUser(firebaseUser));
+  }, [resetAccount, resetUi]);
 
   // Firebase decides who is signed in. Nothing in localStorage can make someone "logged in".
   useEffect(() => {
@@ -280,6 +290,129 @@ export const AppProvider = ({ children }) => {
     });
   }, [openDemo, applyFirebaseUser]);
 
+  const uid = !isDemo ? authUser?.id : null;
+  const email = !isDemo ? authUser?.email : null;
+
+  // The clinics this person belongs to, and invitations waiting for them.
+  useEffect(() => {
+    if (!uid) return undefined;
+    setMembershipStatus('loading');
+    const stopMemberships = watchMemberships(
+      uid,
+      (list, meta) => {
+        setMemberships([...list].sort((a, b) => (a.joinedTs || 0) - (b.joinedTs || 0)));
+        // An empty list straight from the cache may just mean "offline"; wait for the server.
+        if (list.length || !meta.fromCache) setMembershipStatus('ready');
+      },
+      err => {
+        console.error('[Clinics] Could not load memberships:', err);
+        setDataError(err);
+        setMembershipStatus('error');
+      }
+    );
+    return stopMemberships;
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) return undefined;
+    if (!email) {
+      setInvitesStatus('ready');
+      return undefined;
+    }
+    setInvitesStatus('loading');
+    return watchInvitesFor(
+      email,
+      (invites, meta) => {
+        setMyInvites(invites);
+        // An empty list from the cache isn't an answer yet; wait for the server.
+        if (invites.length || !meta.fromCache) setInvitesStatus('ready');
+      },
+      err => {
+        console.error('[Clinics] Could not load invitations:', err);
+        setMyInvites([]);
+        setInvitesStatus('ready');
+      }
+    );
+  }, [uid, email]);
+
+  const clinicIdsKey = memberships.map(m => m.clinicId).join('|');
+  useEffect(() => {
+    if (!clinicIdsKey) return undefined;
+    const unsubscribers = clinicIdsKey.split('|').map(clinicId => watchClinic(
+      clinicId,
+      clinic => setClinicDocs(prev => ({ ...prev, [clinicId]: clinic })),
+      () => {}
+    ));
+    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
+  }, [clinicIdsKey]);
+
+  const openClinic = useCallback((clinicId) => {
+    setActiveClinicId(clinicId);
+    if (authUserRef.current) writeActiveClinic(authUserRef.current.id, clinicId);
+  }, []);
+
+  // Keep a valid clinic open: the one just created/joined, the last one used, or the first.
+  useEffect(() => {
+    if (!uid || membershipStatus !== 'ready') return;
+    const ids = memberships.map(m => m.clinicId);
+    if (pendingClinicRef.current && ids.includes(pendingClinicRef.current)) {
+      openClinic(pendingClinicRef.current);
+      pendingClinicRef.current = null;
+      setSetupStatus(status => (status === 'working' ? 'idle' : status));
+      return;
+    }
+    if (activeClinicId && ids.includes(activeClinicId)) return;
+    const saved = readActiveClinic(uid);
+    setActiveClinicId(ids.includes(saved) ? saved : ids[0] || null);
+  }, [uid, membershipStatus, memberships, activeClinicId, openClinic]);
+
+  // First clinic for a new account. Records the previous version saved under users/{uid}/
+  // are copied into it. Not started while invitations are waiting: the person may be joining one.
+  const setUpOwnClinic = useCallback(async (clinicName) => {
+    const person = authUserRef.current;
+    if (!person) return;
+    setSetupStatus('working');
+    setSetupError(null);
+    try {
+      const pendingSignup = pendingSignupRef.current;
+      pendingSignupRef.current = null;
+      const owner = { ...person, name: pendingSignup?.name || person.name };
+      const legacy = await readLegacyAccountData(owner.id);
+      const hasLegacy = !legacy.migratedToClinicId && (legacy.count > 0 || Boolean(legacy.settings?.orgName));
+      const name = clinicName || (hasLegacy && legacy.settings?.orgName) || pendingSignup?.clinicName || DEFAULT_SETTINGS.orgName;
+      const clinicId = await createClinic({ user: owner, name });
+      if (hasLegacy) {
+        await copyLegacyDataToClinic(legacy, clinicId, name, owner);
+        await markLegacyMigrated(owner.id, clinicId);
+      }
+      // Stays "working" until the new membership arrives and the clinic opens.
+      pendingClinicRef.current = clinicId;
+    } catch (err) {
+      console.error('[Clinics] Setup failed:', err);
+      setSetupError(err);
+      setSetupStatus('error');
+    }
+  }, []);
+
+  // Decided once per sign-in. With invitations waiting, the person chooses (join or create);
+  // later changes, like an accepted invitation leaving the pending list, never trigger it.
+  useEffect(() => {
+    if (!uid || membershipStatus !== 'ready' || invitesStatus !== 'ready' || setupDecidedFor === uid) return;
+    setSetupDecidedFor(uid);
+    if (!memberships.length && !myInvites.length) setUpOwnClinic();
+  }, [uid, membershipStatus, invitesStatus, setupDecidedFor, memberships.length, myInvites.length, setUpOwnClinic]);
+
+  const activeMembership = memberships.find(m => m.clinicId === activeClinicId) || null;
+  const membershipRole = activeMembership?.role || null;
+  const role = isDemo ? demoRole : membershipRole;
+
+  // One store per open clinic and role (the role decides which collections can be read).
+  useEffect(() => {
+    // The ref, not isDemo: on a reload the demo opens in this same effect pass.
+    if (demoActiveRef.current) return;
+    setStore(uid && activeClinicId && membershipRole ? createCloudStore({ clinicId: activeClinicId, role: membershipRole }) : null);
+  }, [isDemo, uid, activeClinicId, membershipRole]);
+
   // Mirror every collection from the store. Each store change arrives here, so the
   // screen always shows what is actually saved.
   useEffect(() => {
@@ -290,26 +423,14 @@ export const AppProvider = ({ children }) => {
       return undefined;
     }
     setDataStatus('loading');
-
-    const current = emptyCollections();
     const loaded = new Set();
-    const loadedFromServer = new Set();
 
     return store.subscribe(
-      (name, docs, meta) => {
-        current[name] = docs;
+      (name, docs) => {
         setData(prev => ({ ...prev, [name]: sortCollection(name, docs) }));
         loaded.add(name);
-        if (!meta.fromCache) loadedFromServer.add(name);
         if (loaded.size === COLLECTIONS.length) {
           setDataStatus(status => (status === 'error' ? status : 'ready'));
-        }
-        if (loadedFromServer.size === COLLECTIONS.length && bootstrappedStoreRef.current !== store) {
-          bootstrappedStoreRef.current = store;
-          const pendingSignup = pendingSignupRef.current;
-          pendingSignupRef.current = null;
-          bootstrapAccount(store, current, userRef.current, pendingSignup)
-            .catch(err => setSyncError(describeSaveError(err)));
         }
       },
       (name, err) => {
@@ -319,6 +440,21 @@ export const AppProvider = ({ children }) => {
       }
     );
   }, [store]);
+
+  // Where the signed-in person is: loading | settingUp | needsClinic | ready
+  let accountStatus = 'ready';
+  if (uid) {
+    if (membershipStatus === 'error') accountStatus = 'error';
+    else if (membershipStatus !== 'ready' || invitesStatus !== 'ready') accountStatus = 'loading';
+    else if (!memberships.length) {
+      if (setupStatus === 'working') accountStatus = 'settingUp';
+      else if (myInvites.length || setupStatus === 'error' || setupDecidedFor === uid) accountStatus = 'needsClinic';
+      else accountStatus = 'settingUp';
+    }
+  }
+
+  const user = authUser ? { ...authUser, role: role || authUser.role } : null;
+  const can = (permission) => roleCan(role, permission);
 
   // --- Derived values ---
   const {
@@ -331,19 +467,35 @@ export const AppProvider = ({ children }) => {
     return { ...DEFAULT_SETTINGS, ...saved };
   }, [data.settings]);
 
-  const workspaces = data.workspaces;
-  const activeWorkspaceId = settings.activeWorkspaceId || workspaces[0]?.id || null;
-  const isDemo = store?.kind === 'demo';
+  // Accounts: the clinics this person belongs to. Demo: the sample clinic.
+  const workspaces = isDemo
+    ? data.workspaces.map(ws => ({ ...ws, role: demoRole, isFounder: true }))
+    : memberships.map(m => ({
+      id: m.clinicId,
+      name: clinicDocs[m.clinicId]?.name || (m.clinicId === activeClinicId ? settings.orgName : 'Clinic'),
+      plan: clinicDocs[m.clinicId]?.plan || '',
+      role: m.role,
+      isFounder: clinicDocs[m.clinicId]?.ownerUid === uid
+    }));
+  const activeWorkspaceId = isDemo ? (settings.activeWorkspaceId || workspaces[0]?.id || null) : activeClinicId;
 
   // Vets who can be assigned to visits and sign prescriptions.
+  const userName = user?.name;
   const doctorNames = useMemo(() => {
     const names = team
       .filter(member => DOCTOR_ROLES.includes(String(member.role || '').toLowerCase()))
       .map(member => member.name)
       .filter(Boolean);
-    if (user?.name) names.unshift(user.name);
+    if (userName) names.unshift(userName);
     return [...new Set(names)];
-  }, [team, user]);
+  }, [team, userName]);
+
+  // Checks a permission and explains a refusal (firestore.rules refuses it anyway).
+  const allowed = (permission, action) => {
+    if (can(permission)) return true;
+    alert(`Your role in this clinic (${role || 'none'}) can't ${action}.`);
+    return false;
+  };
 
   // --- Writing ---
   const reportSaveError = (err) => {
@@ -399,51 +551,86 @@ export const AppProvider = ({ children }) => {
     logStock(product.name, `${delta > 0 ? '+' : ''}${delta} units (${reason})`);
   };
 
-  // --- Workspaces & settings ---
+  // --- Clinics & settings ---
   const updateSettings = (newSettings) => {
+    if (!allowed('manageClinic', 'change clinic settings')) return;
     const { id, ...fields } = newSettings;
     updateRecord('settings', 'global', fields);
-    if (activeWorkspaceId && (fields.orgName !== undefined || fields.slug !== undefined)) {
-      updateRecord('workspaces', activeWorkspaceId, { name: fields.orgName ?? settings.orgName, slug: fields.slug ?? settings.slug });
+    if (!activeWorkspaceId || (fields.orgName === undefined && fields.slug === undefined)) return;
+    const profile = { name: fields.orgName ?? settings.orgName, slug: fields.slug ?? settings.slug };
+    if (isDemo) updateRecord('workspaces', activeWorkspaceId, profile);
+    else persist(() => updateClinicProfile(activeWorkspaceId, profile));
+  };
+
+  // Creates a separate clinic (its own records and team) and opens it.
+  const registerClinic = async (clinicData) => {
+    if (isDemo) {
+      alert('The demo has one sample clinic. Sign in with an account to create your own clinics.');
+      return false;
+    }
+    try {
+      const clinicId = await createClinic({
+        user,
+        name: clinicData.clinicName,
+        plan: clinicData.plan || 'Trial Plan',
+        settings: {
+          phone: clinicData.phone || '',
+          address: [clinicData.district, clinicData.governorate].filter(Boolean).join(', ')
+        }
+      });
+      pendingClinicRef.current = clinicId;
+      resetUi();
+      return true;
+    } catch (err) {
+      reportSaveError(err);
+      return false;
     }
   };
 
-  const registerClinic = (clinicData) => {
-    const workspace = createRecord('workspaces', 'ws', {
-      name: clinicData.clinicName,
-      slug: slugify(clinicData.clinicName),
-      plan: clinicData.plan || 'Trial Plan'
-    });
+  const switchWorkspace = (clinicId) => {
+    if (isDemo || clinicId === activeClinicId) return;
+    resetUi();
+    openClinic(clinicId);
+  };
+
+  // Founding owner only: deletes the clinic and everything in it.
+  const deleteWorkspace = async (clinicId) => {
+    const workspace = workspaces.find(w => w.id === clinicId);
     if (!workspace) return;
-    updateRecord('settings', 'global', {
-      orgName: workspace.name,
-      slug: workspace.slug,
-      phone: clinicData.phone || settings.phone,
-      address: [clinicData.district, clinicData.governorate].filter(Boolean).join(', '),
-      activeWorkspaceId: workspace.id
-    });
-    createRecord('notifications', 'n', { title: `Registered workspace: ${workspace.name}`, time: todayLocal(), read: false });
-  };
-
-  const switchWorkspace = (wsId) => {
-    const workspace = workspaces.find(w => w.id === wsId);
-    if (workspace) {
-      updateRecord('settings', 'global', { activeWorkspaceId: workspace.id, orgName: workspace.name, slug: workspace.slug });
-    }
-  };
-
-  const deleteWorkspace = (wsId) => {
     if (workspaces.length <= 1) {
       alert('Cannot delete the only remaining workspace. You must have at least one active clinic.');
       return;
     }
-    const target = workspaces.find(w => w.id === wsId);
-    removeRecord('workspaces', wsId);
-    if (activeWorkspaceId === wsId) {
-      const next = workspaces.find(w => w.id !== wsId);
-      updateRecord('settings', 'global', { activeWorkspaceId: next.id, orgName: next.name, slug: next.slug });
+    if (isDemo) return;
+    if (!workspace.isFounder) {
+      alert('Only the person who created this clinic can delete it. You can leave it instead.');
+      return;
     }
-    alert(`Clinic workspace "${target ? target.name : 'workspace'}" has been deleted.`);
+    try {
+      if (clinicId === activeClinicId) openClinic(workspaces.find(w => w.id !== clinicId).id);
+      await deleteClinic(clinicId, uid);
+      alert(`Clinic workspace "${workspace.name}" has been deleted.`);
+    } catch (err) {
+      reportSaveError(err);
+    }
+  };
+
+  const leaveWorkspace = async (clinicId) => {
+    const workspace = workspaces.find(w => w.id === clinicId);
+    if (!workspace || isDemo) return;
+    if (workspace.isFounder) {
+      alert('You created this clinic, so you can delete it but not leave it.');
+      return;
+    }
+    try {
+      if (clinicId === activeClinicId) {
+        const next = workspaces.find(w => w.id !== clinicId);
+        if (next) openClinic(next.id);
+      }
+      await leaveClinic(clinicId, uid);
+    } catch (err) {
+      reportSaveError(err);
+    }
   };
 
   // --- Clients, pets, visits ---
@@ -467,6 +654,7 @@ export const AppProvider = ({ children }) => {
 
   // --- Products & stock ---
   const addProduct = (prodData) => {
+    if (!allowed('manageInventory', 'add products or services')) return;
     const product = createRecord('products', 'prod', {
       ...prodData,
       revenuePerUnit: (Number(prodData.pricePerUnit) || 0) - (Number(prodData.costPerUnit) || 0)
@@ -477,6 +665,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateProduct = (id, updatedData) => {
+    if (!allowed('manageInventory', 'edit products or services')) return;
     const existing = products.find(p => p.id === id) || {};
     const merged = { ...existing, ...updatedData };
     updateRecord('products', id, {
@@ -486,7 +675,9 @@ export const AppProvider = ({ children }) => {
     logStock(merged.name || 'Product', `Updated (${updatedData.quantity !== undefined ? updatedData.quantity : 'stock'})`);
   };
 
-  const deleteProduct = (id) => removeRecord('products', id);
+  const deleteProduct = (id) => {
+    if (allowed('manageInventory', 'delete products or services')) removeRecord('products', id);
+  };
 
   // --- Billing & expenses ---
   // items: [{ productId, name, type, quantity, unitPrice }]. Products leave stock when the
@@ -556,16 +747,27 @@ export const AppProvider = ({ children }) => {
     updateRecord('invoices', id, changes);
   };
 
-  const addExpense = (expData) => createRecord('expenses', 'exp', { ...expData, date: expData.date || todayLocal() });
+  const addExpense = (expData) => {
+    if (!allowed('viewFinances', 'record expenses')) return null;
+    return createRecord('expenses', 'exp', { ...expData, date: expData.date || todayLocal() });
+  };
 
-  const deleteExpense = (id) => removeRecord('expenses', id);
+  const deleteExpense = (id) => {
+    if (allowed('viewFinances', 'delete expenses')) removeRecord('expenses', id);
+  };
 
   // --- Medical records ---
-  const addVaccine = (vacData) => createRecord('vaccines', 'vac', vacData);
+  const addVaccine = (vacData) => {
+    if (!allowed('writeMedical', 'record vaccines')) return null;
+    return createRecord('vaccines', 'vac', vacData);
+  };
 
-  const deleteVaccine = (id) => removeRecord('vaccines', id);
+  const deleteVaccine = (id) => {
+    if (allowed('writeMedical', 'delete vaccine records')) removeRecord('vaccines', id);
+  };
 
   const saveSOAPNote = (soapData) => {
+    if (!allowed('writeMedical', 'edit clinical notes')) return;
     const { id, ...fields } = soapData;
     const existing = soapNotes.find(s => (id && s.id === id) || (fields.visitId && s.visitId === fields.visitId));
     if (existing) {
@@ -581,23 +783,88 @@ export const AppProvider = ({ children }) => {
   const updateReminderStatus = (id, status) => updateRecord('reminders', id, { status });
 
   // --- Team ---
+  const founderUid = isDemo ? DEMO_USER.id : clinicDocs[activeClinicId]?.ownerUid;
+
+  // Creates an invitation. The invitee joins by signing in with this email (verified).
   const inviteMember = (inviteData) => {
-    const role = inviteData.role || 'Vet';
-    createRecord('invitations', 'invite', {
+    if (!allowed('manageTeam', 'invite team members')) return null;
+    const inviteEmail = String(inviteData.email || '').trim().toLowerCase();
+    if (team.some(member => String(member.email || '').toLowerCase() === inviteEmail)) {
+      alert(`${inviteEmail} is already a member of this clinic.`);
+      return null;
+    }
+    if (invitations.some(inv => inv.email === inviteEmail)) {
+      alert(`${inviteEmail} already has a pending invitation.`);
+      return null;
+    }
+    return createRecord('invitations', 'invite', {
       name: inviteData.name,
-      email: inviteData.email,
-      role,
+      email: inviteEmail,
+      role: ROLES.includes(inviteData.role) ? inviteData.role : 'Vet',
+      clinicName: settings.orgName,
+      invitedByUid: user?.id || '',
+      invitedByName: user?.name || '',
       sentAt: todayLocal(),
-      status: 'Pending'
+      status: 'pending'
     });
-    createRecord('team', 'usr', { name: inviteData.name, email: inviteData.email, role, status: 'invited' });
   };
 
-  const updateMemberRole = (memberId, role) => updateRecord('team', memberId, { role });
+  const canChangeMember = (memberId, action) => {
+    if (!allowed('manageTeam', action)) return false;
+    if (memberId === user?.id) {
+      alert('You can\'t change your own role or remove yourself here.');
+      return false;
+    }
+    if (memberId === founderUid) {
+      alert('The person who created the clinic can\'t be changed or removed.');
+      return false;
+    }
+    return true;
+  };
 
-  const removeMember = (memberId) => removeRecord('team', memberId);
+  const updateMemberRole = (memberId, newRole) => {
+    if (!ROLES.includes(newRole) || !canChangeMember(memberId, 'change roles')) return;
+    updateRecord('team', memberId, { role: newRole });
+  };
 
-  const cancelInvitation = (invId) => removeRecord('invitations', invId);
+  const removeMember = (memberId) => {
+    if (canChangeMember(memberId, 'remove team members')) removeRecord('team', memberId);
+  };
+
+  const cancelInvitation = (invId) => {
+    if (allowed('manageTeam', 'cancel invitations')) removeRecord('invitations', invId);
+  };
+
+  // Invitations addressed to the signed-in person. Joining needs a verified email.
+  const acceptInvitation = async (invite) => {
+    if (!user?.emailVerified) {
+      const refreshed = await refreshSignedInUser();
+      if (!refreshed.emailVerified) {
+        const err = new Error('Verify your email address before joining a clinic.');
+        err.code = 'needs-verification';
+        throw err;
+      }
+      setAuthUser(toAppUser(refreshed));
+    }
+    // "working" until the membership arrives and the clinic opens (see the selection effect).
+    setSetupStatus('working');
+    try {
+      await acceptInvite(invite, user);
+    } catch (err) {
+      setSetupStatus('idle');
+      throw err;
+    }
+    pendingClinicRef.current = invite.clinicId;
+    resetUi();
+  };
+
+  const declineInvitation = (invite) => declineInvite(invite.id);
+
+  const checkEmailVerified = async () => {
+    const refreshed = await refreshSignedInUser();
+    setAuthUser(toAppUser(refreshed));
+    return refreshed.emailVerified;
+  };
 
   // --- Notifications ---
   const markAllNotificationsRead = () => {
@@ -619,17 +886,19 @@ export const AppProvider = ({ children }) => {
 
   const importClientsData = (rows) => importRows('clients', rows, formatImportedClient, 'clients');
   const importPetsData = (rows) => importRows('pets', rows, formatImportedPet, 'pets');
-  const importProductsData = (rows) => importRows('products', rows, formatImportedProduct, 'products/services');
+  const importProductsData = (rows) =>
+    (allowed('manageInventory', 'import products') ? importRows('products', rows, formatImportedProduct, 'products/services') : 0);
 
   // Merges a backup into the clinic: records with the same ID are overwritten,
   // everything else already saved is kept.
   const importFullBackup = (backupData) => {
+    if (!allowed('manageClinic', 'restore backups')) return 0;
     if (!backupData || typeof backupData !== 'object' || Array.isArray(backupData)) {
       alert('Invalid backup file format.');
       return 0;
     }
     let total = 0;
-    COLLECTIONS.filter(name => name !== 'settings').forEach(name => {
+    COLLECTIONS.filter(name => !NOT_RESTORED.includes(name)).forEach(name => {
       const list = backupData[name];
       if (!Array.isArray(list) || list.length === 0) return;
       const records = list
@@ -643,16 +912,17 @@ export const AppProvider = ({ children }) => {
       updateSettings(restoredSettings);
     }
     alert(total > 0
-      ? `Backup restored: ${total} records merged into your clinic.`
+      ? `Backup restored: ${total} records merged into your clinic. Team members are not restored; invite them from the Team page.`
       : 'The backup file did not contain any records.');
     return total;
   };
 
   // Uploads records an older version left in this browser, then removes them locally.
   const importLegacyLocalData = async () => {
-    if (!store) return false;
+    if (!store || !allowed('manageClinic', 'upload records into this clinic')) return false;
     try {
       for (const [name, records] of Object.entries(legacyData.collections)) {
+        if (NOT_RESTORED.includes(name)) continue;
         await store.setMany(name, records.map(item => ({ ...item, id: safeId(item.id, name) })));
       }
       clearLegacyLocalData();
@@ -706,8 +976,9 @@ export const AppProvider = ({ children }) => {
       demoActiveRef.current = false;
       writeFlag(DEMO_SESSION_KEY, false);
       clearDemoData();
-      storeOwnerRef.current = null;
-      setUser(null);
+      setIsDemo(false);
+      setDemoRole('Owner');
+      setAuthUser(null);
       setStore(null);
       return;
     }
@@ -720,11 +991,16 @@ export const AppProvider = ({ children }) => {
       value={{
         // Session
         authStatus,
+        accountStatus,
         dataStatus,
         dataError,
         isFirebaseConfigured,
         isDemo,
         user,
+        role,
+        can,
+        // Demo only: see the app as another role.
+        previewRole: isDemo ? setDemoRole : undefined,
         loginWithEmail,
         loginWithGoogle,
         signup,
@@ -734,12 +1010,21 @@ export const AppProvider = ({ children }) => {
         syncError,
         dismissSyncError: () => setSyncError(null),
 
-        // Workspaces & settings
+        // Clinics & settings
         workspaces,
         activeWorkspaceId,
         registerClinic,
         switchWorkspace,
         deleteWorkspace,
+        leaveWorkspace,
+        setupStatus,
+        setupError,
+        createOwnClinic: setUpOwnClinic,
+        myInvites,
+        acceptInvitation,
+        declineInvitation,
+        checkEmailVerified,
+        resendVerificationEmail,
         settings,
         setSettings: updateSettings,
 
@@ -775,6 +1060,7 @@ export const AppProvider = ({ children }) => {
         soapNotes,
         saveSOAPNote,
         team,
+        founderUid,
         doctorNames,
         invitations,
         inviteMember,

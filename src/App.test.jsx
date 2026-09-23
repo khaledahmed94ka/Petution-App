@@ -195,3 +195,62 @@ describe('demo clinic', () => {
     ]);
   });
 });
+
+describe('roles (demo preview)', () => {
+  const navLabels = (container) => [...container.querySelectorAll('.sidebar .nav-item')].map(item => item.textContent);
+
+  it('a receptionist sees no finance or settings pages and can\'t reach them by URL', async () => {
+    const { container } = await renderDemo();
+    act(() => app.previewRole('Receptionist'));
+    expect(navLabels(container)).not.toEqual(expect.arrayContaining(['Expenses']));
+    expect(navLabels(container)).not.toContain('Analytics');
+    expect(navLabels(container)).not.toContain('Settings');
+    expect(navLabels(container)).toContain('Invoices');
+
+    act(() => app.setActiveTab('expenses'));
+    expect(screen.getByText("You don't have access to this page")).toBeTruthy();
+  });
+
+  it('a receptionist can read but not edit clinical notes or vaccines', async () => {
+    const { container } = await renderDemo();
+    act(() => app.previewRole('Receptionist'));
+    openDrawer('soapNote', 'vis-2');
+    expect(screen.getByText(/Only vets and owners can edit clinical notes/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Save SOAP Record/ })).toBeNull();
+    expect(container.querySelector('.soap-fieldset').disabled).toBe(true);
+
+    openDrawer('petPassport', 'pet-1');
+    expect(screen.queryByRole('button', { name: /Record Vaccine Shot/ })).toBeNull();
+
+    const before = app.soapNotes.length;
+    act(() => app.saveSOAPNote({ visitId: 'vis-x', petId: 'pet-1', plan: 'x' }));
+    expect(app.soapNotes).toHaveLength(before);
+    expect(window.alert).toHaveBeenCalledWith("Your role in this clinic (Receptionist) can't edit clinical notes.");
+  });
+
+  it('a vet edits medical records but not inventory; an admin the other way round', async () => {
+    await renderDemo();
+    act(() => app.previewRole('Vet'));
+    act(() => app.setActiveTab('products'));
+    expect(screen.queryByRole('button', { name: /Add Item/ })).toBeNull();
+    act(() => app.addProduct({ name: 'Sneaky', type: 'product', quantity: 1, pricePerUnit: 1, costPerUnit: 0 }));
+    expect(app.products.some(p => p.name === 'Sneaky')).toBe(false);
+
+    act(() => app.previewRole('Admin'));
+    expect(screen.getByRole('button', { name: /Add Item/ })).toBeTruthy();
+    openDrawer('soapNote', 'vis-2');
+    expect(screen.queryByRole('button', { name: /Save SOAP Record/ })).toBeNull();
+  });
+
+  it('only owners manage the team', async () => {
+    const { container } = await renderDemo();
+    act(() => app.setActiveTab('team'));
+    expect(screen.getByRole('button', { name: /Invite member/ })).toBeTruthy();
+    expect(container.querySelectorAll('.role-select')).toHaveLength(2);
+
+    act(() => app.previewRole('Vet'));
+    expect(screen.queryByRole('button', { name: /Invite member/ })).toBeNull();
+    expect(container.querySelectorAll('.role-select')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /Invitations/ })).toBeNull();
+  });
+});

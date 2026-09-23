@@ -14,6 +14,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   updateProfile
 } from 'firebase/auth';
 import { initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
@@ -55,6 +56,7 @@ export const toAppUser = (firebaseUser) => ({
   photoURL: firebaseUser.photoURL || null,
   role: 'Owner',
   provider: firebaseUser.providerData?.some(p => p.providerId === 'google.com') ? 'google' : 'email',
+  emailVerified: Boolean(firebaseUser.emailVerified),
   isAuthenticated: true
 });
 
@@ -76,7 +78,18 @@ export const signUpWithEmail = async (email, password, displayName) => {
     // Without this the name typed at sign-up is lost on the next page load.
     await updateProfile(result.user, { displayName });
   }
+  // Needed before accepting a clinic invitation. Not fatal if it can't be sent now.
+  sendEmailVerification(result.user).catch(err => console.warn('[Auth] Verification email not sent:', err));
   return result.user;
+};
+
+export const resendVerificationEmail = () => sendEmailVerification(auth.currentUser);
+
+// Picks up a verification done in another tab (the ID token carries email_verified).
+export const refreshSignedInUser = async () => {
+  await auth.currentUser.reload();
+  await auth.currentUser.getIdToken(true);
+  return auth.currentUser;
 };
 
 export const sendPasswordReset = (email) => sendPasswordResetEmail(auth, email);

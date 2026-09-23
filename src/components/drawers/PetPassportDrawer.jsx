@@ -4,7 +4,8 @@ import { useApp } from '../../context/AppContext';
 import { RecordNotFoundDrawer } from './RecordNotFoundDrawer';
 
 export const PetPassportDrawer = ({ petId }) => {
-  const { setActiveDrawer, pets, clients, vaccines, deleteVaccine, settings } = useApp();
+  const { setActiveDrawer, pets, clients, vaccines, deleteVaccine, settings, can } = useApp();
+  const canWriteMedical = can('writeMedical');
   const pet = pets.find(p => p.id === petId);
   const owner = clients.find(c => pet?.owners?.includes(c.id));
 
@@ -91,12 +92,14 @@ export const PetPassportDrawer = ({ petId }) => {
               <h4 className="font-bold flex items-center gap-xs text-sm">
                 <ShieldCheck size={16} className="text-teal" /> Immunization & Vaccination History
               </h4>
-              <button 
-                className="btn-primary text-xs no-print"
-                onClick={() => setActiveDrawer('addVaccine')}
-              >
-                <Plus size={14} /> Record Vaccine Shot
-              </button>
+              {canWriteMedical && (
+                <button 
+                  className="btn-primary text-xs no-print"
+                  onClick={() => setActiveDrawer('addVaccine')}
+                >
+                  <Plus size={14} /> Record Vaccine Shot
+                </button>
+              )}
             </div>
 
             <table className="passport-table margin-top-sm">
@@ -133,7 +136,7 @@ export const PetPassportDrawer = ({ petId }) => {
                       </td>
                       <td className="text-xs">{vac.vetName || '—'}</td>
                       <td className="no-print">
-                        <button 
+                        {canWriteMedical && <button 
                           className="icon-btn text-rose"
                           title="Delete Vaccine Record"
                           onClick={() => {
@@ -143,7 +146,7 @@ export const PetPassportDrawer = ({ petId }) => {
                           }}
                         >
                           <Trash2 size={14} />
-                        </button>
+                        </button>}
                       </td>
                     </tr>
                   ))

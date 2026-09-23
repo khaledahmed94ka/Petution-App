@@ -20,6 +20,20 @@ export const COLLECTIONS = [
 
 export const emptyCollections = () => Object.fromEntries(COLLECTIONS.map(name => [name, []]));
 
+// Collections stored under clinics/{clinicId}/ in Firestore. The rest come from elsewhere:
+// team = clinics/{clinicId}/members, invitations = top-level invites, workspaces = the user's memberships.
+export const CLINIC_RECORD_COLLECTIONS = COLLECTIONS.filter(name => !['team', 'invitations', 'workspaces'].includes(name));
+
+export const DEFAULT_SETTINGS = {
+  orgName: 'My Clinic',
+  slug: 'my-clinic',
+  phone: '',
+  address: '',
+  website: '',
+  shopifyShop: '',
+  shopifySyncEnabled: false
+};
+
 // Records created by this version carry createdTs; older ones fall back to their ID.
 const newestFirst = (a, b) =>
   (b.createdTs || 0) - (a.createdTs || 0) || String(b.id).localeCompare(String(a.id));
