@@ -2,8 +2,32 @@ import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
+// Builds the receipt with text nodes so names from records or imports can't inject HTML/script.
+const printReceipt = (invoice, petName, clinicName) => {
+  const receiptWindow = window.open('', '_blank');
+  if (!receiptWindow) {
+    alert('Allow pop-ups for this site to print receipts.');
+    return;
+  }
+  const doc = receiptWindow.document;
+  doc.title = `Receipt - ${clinicName}`;
+  doc.body.style.cssText = 'font-family: sans-serif; padding: 30px;';
+  const add = (tag, text) => {
+    const el = doc.createElement(tag);
+    el.textContent = text;
+    doc.body.appendChild(el);
+    return el;
+  };
+  add('h2', `${clinicName} Receipt`);
+  add('p', `Invoice ID: ${invoice.id}`);
+  add('p', `Pet: ${petName}`);
+  add('h3', `Total Amount: ${invoice.totalAmount} EGP`);
+  add('p', `Status: ${String(invoice.status || '').toUpperCase()}`);
+  add('button', 'Print').addEventListener('click', () => receiptWindow.print());
+};
+
 export const InvoicesView = () => {
-  const { invoices, pets, setActiveDrawer } = useApp();
+  const { invoices, pets, settings, setActiveDrawer } = useApp();
   const [statusFilter, setStatusFilter] = useState('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -109,10 +133,7 @@ export const InvoicesView = () => {
                     <td>
                       <button 
                         className="btn-secondary text-xs"
-                        onClick={() => {
-                          const w = window.open('', '_blank');
-                          w.document.write(`<html><head><title>Receipt - Petution Clinic</title></head><body style="font-family:sans-serif;padding:30px;"><h2>Petution Clinic Receipt</h2><p>Invoice ID: ${inv.id}</p><p>Pet: ${pet ? pet.name : 'Client'}</p><h3>Total Amount: ${inv.totalAmount} EGP</h3><p>Status: ${inv.status.toUpperCase()}</p><button onclick="window.print()">Print</button></body></html>`);
-                        }}
+                        onClick={() => printReceipt(inv, pet ? pet.name : 'Client', settings.orgName || 'Petution Clinic')}
                       >
                         Print Receipt
                       </button>
