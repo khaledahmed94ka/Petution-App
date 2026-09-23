@@ -5,12 +5,12 @@ import { useApp } from '../../context/AppContext';
 export const AddInvoiceDrawer = () => {
   const { setActiveDrawer, addInvoice, pets, products, addReminder } = useApp();
 
-  const [selectedPet, setSelectedPet] = useState(pets[0]?.id || '');
+  const [selectedPet, setSelectedPet] = useState('');
   const [invoiceState, setInvoiceState] = useState('pending');
   const [discountType, setDiscountType] = useState('none');
   const [discountValue, setDiscountValue] = useState(0);
   const [taxPercent, setTaxPercent] = useState(14);
-  const [selectedProduct, setSelectedProduct] = useState(products[0]?.id || '');
+  const [selectedProduct, setSelectedProduct] = useState('');
 
   const items = useMemo(() => {
     const prod = products.find(p => p.id === selectedProduct);
@@ -93,6 +93,7 @@ export const AddInvoiceDrawer = () => {
               value={selectedPet}
               onChange={(e) => setSelectedPet(e.target.value)}
             >
+              <option value="" disabled>Select a pet</option>
               {pets.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -154,6 +155,7 @@ export const AddInvoiceDrawer = () => {
               value={selectedProduct}
               onChange={(e) => setSelectedProduct(e.target.value)}
             >
+              <option value="" disabled>Select an item or service</option>
               {products.map(p => (
                 <option key={p.id} value={p.id}>{p.name} - {p.pricePerUnit} EGP</option>
               ))}

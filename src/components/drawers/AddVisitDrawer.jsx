@@ -3,11 +3,21 @@ import { X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const AddVisitDrawer = () => {
-  const { setActiveDrawer, addVisit, clients, pets } = useApp();
+  const { setActiveDrawer, addVisit, clients, pets, doctorNames } = useApp();
 
-  const [selectedClient, setSelectedClient] = useState(clients[0]?.id || '');
-  const [selectedPet, setSelectedPet] = useState(pets[0]?.id || '');
-  const [doctorName, setDoctorName] = useState('Dr. Khaled ElGendy');
+  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedPet, setSelectedPet] = useState('');
+  const [doctorName, setDoctorName] = useState(doctorNames[0] || 'Unassigned');
+
+  // Once a client is chosen, only their pets are offered (imported pets may have no owner yet).
+  const client = clients.find(c => c.id === selectedClient);
+  const clientPets = client ? pets.filter(p => p.owners?.includes(client.id) || client.pets?.includes(p.id)) : [];
+  const petOptions = clientPets.length ? clientPets : pets;
+
+  const handleClientChange = (clientId) => {
+    setSelectedClient(clientId);
+    setSelectedPet('');
+  };
   const [visitType, setVisitType] = useState('Check-up');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('08:00 PM');
@@ -52,8 +62,9 @@ export const AddVisitDrawer = () => {
             <select 
               className="form-control"
               value={selectedClient}
-              onChange={(e) => setSelectedClient(e.target.value)}
+              onChange={(e) => handleClientChange(e.target.value)}
             >
+              <option value="">Select a client</option>
               {clients.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -66,8 +77,10 @@ export const AddVisitDrawer = () => {
               className="form-control"
               value={selectedPet}
               onChange={(e) => setSelectedPet(e.target.value)}
+              required
             >
-              {pets.map(p => (
+              <option value="" disabled>Select a pet</option>
+              {petOptions.map(p => (
                 <option key={p.id} value={p.id}>{p.name} ({p.species})</option>
               ))}
             </select>
@@ -80,7 +93,9 @@ export const AddVisitDrawer = () => {
               value={doctorName}
               onChange={(e) => setDoctorName(e.target.value)}
             >
-              <option value="Dr. Khaled ElGendy">Dr. Khaled ElGendy</option>
+              {doctorNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
               <option value="Unassigned">Unassigned</option>
             </select>
           </div>

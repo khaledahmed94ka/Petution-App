@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 export const AnalyticsView = () => {
-  const { visits, clients, pets, invoices, expenses = [] } = useApp();
+  const { visits, clients, pets, invoices, expenses = [], doctorNames } = useApp();
   const [doctorFilter, setDoctorFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('Last 3 months');
 
@@ -26,7 +26,7 @@ export const AnalyticsView = () => {
 
   const filteredVisits = visits.filter(v => {
     const passDate = isAfterStart(v.date || v.createdAt);
-    const passDoctor = doctorFilter === 'all' || v.doctorName?.toLowerCase().includes(doctorFilter.toLowerCase());
+    const passDoctor = doctorFilter === 'all' || v.doctorName === doctorFilter;
     return passDate && passDoctor;
   });
 
@@ -78,7 +78,9 @@ export const AnalyticsView = () => {
             onChange={(e) => setDoctorFilter(e.target.value)}
           >
             <option value="all">Doctor: all</option>
-            <option value="khaled">Dr. Khaled ElGendy</option>
+            {doctorNames.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
           </select>
           <select 
             className="form-control"

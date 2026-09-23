@@ -3,10 +3,10 @@ import { X, Calendar, Clock, User, FileText, CheckCircle2, AlertCircle } from 'l
 import { useApp } from '../../context/AppContext';
 
 export const ManageVisitModal = ({ visit, onClose }) => {
-  const { pets, updateVisit, setActiveDrawer, setActiveModalItem } = useApp();
+  const { pets, updateVisit, doctorNames, setActiveDrawer, setActiveModalItem } = useApp();
 
   const [visitState, setVisitState] = useState(visit?.state || 'scheduled');
-  const [doctorName, setDoctorName] = useState(visit?.doctorName || 'Dr. Khaled ElGendy');
+  const [doctorName, setDoctorName] = useState(visit?.doctorName || '');
   const [reason, setReason] = useState(visit?.reason || '');
 
   if (!visit) return null;
@@ -60,10 +60,14 @@ export const ManageVisitModal = ({ visit, onClose }) => {
             <input 
               type="text" 
               className="form-control"
+              list="visit-doctor-names"
               value={doctorName}
               onChange={(e) => setDoctorName(e.target.value)}
               required
             />
+            <datalist id="visit-doctor-names">
+              {doctorNames.map(name => <option key={name} value={name} />)}
+            </datalist>
           </div>
 
           <div className="form-group margin-bottom-sm">

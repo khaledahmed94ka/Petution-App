@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { X, Printer, Plus, ShieldCheck, Cpu, Calendar, Syringe, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { RecordNotFoundDrawer } from './RecordNotFoundDrawer';
 
 export const PetPassportDrawer = ({ petId }) => {
   const { setActiveDrawer, pets, clients, vaccines, deleteVaccine, settings } = useApp();
-  const pet = pets.find(p => p.id === petId) || pets[0];
+  const pet = pets.find(p => p.id === petId);
   const owner = clients.find(c => pet?.owners?.includes(c.id));
 
   const petVaccines = vaccines.filter(v => v.petId === pet?.id);
@@ -13,7 +14,14 @@ export const PetPassportDrawer = ({ petId }) => {
     window.print();
   };
 
-  if (!pet) return null;
+  if (!pet) {
+    return (
+      <RecordNotFoundDrawer
+        title="Patient not found"
+        message="This pet's record no longer exists, so its passport cannot be shown."
+      />
+    );
+  }
 
   return (
     <div className="drawer-backdrop" onClick={() => setActiveDrawer(null)}>
@@ -60,7 +68,7 @@ export const PetPassportDrawer = ({ petId }) => {
               <div className="pet-main-details">
                 <h3 className="font-bold text-xl">{pet.name}</h3>
                 <p className="text-xs text-muted">
-                  {pet.species.toUpperCase()} • {pet.breed || 'Cross Breed'} • {pet.gender.toUpperCase()}
+                  {String(pet.species || '').toUpperCase()} • {pet.breed || 'Cross Breed'} • {String(pet.gender || '').toUpperCase()}
                 </p>
 
                 <div className="passport-tags-row margin-top-xs">
@@ -74,7 +82,7 @@ export const PetPassportDrawer = ({ petId }) => {
                 <span className="text-xs text-muted block">REGISTERED OWNER</span>
                 <span className="font-semibold text-sm block">{owner ? owner.name : 'Unassigned'}</span>
                 <span className="text-xs text-muted block margin-top-xs">{owner?.phones?.[0]?.phone || 'No phone'}</span>
-                <span className="text-xs text-muted block">Card #: {pet.cardNo || 'CRD-AUTO'}</span>
+                <span className="text-xs text-muted block">Card #: {pet.cardNo || '—'}</span>
               </div>
             </div>
 
@@ -115,15 +123,15 @@ export const PetPassportDrawer = ({ petId }) => {
                       <td className="font-semibold">{vac.administeredDate}</td>
                       <td>
                         <div className="font-bold text-sm">{vac.vaccineName}</div>
-                        <span className="text-xs text-muted">{vac.manufacturer || 'Authorized Vet Spec'}</span>
+                        <span className="text-xs text-muted">{vac.manufacturer || '—'}</span>
                       </td>
                       <td className="font-mono text-xs">{vac.batchNumber || 'N/A'}</td>
                       <td>
                         <span className="badge badge-amber text-xs font-semibold">
-                          <Calendar size={12} /> {vac.dueDate || '1 Year'}
+                          <Calendar size={12} /> {vac.dueDate || '—'}
                         </span>
                       </td>
-                      <td className="text-xs">{vac.vetName || 'Dr. Khaled ElGendy'}</td>
+                      <td className="text-xs">{vac.vetName || '—'}</td>
                       <td className="no-print">
                         <button 
                           className="icon-btn text-rose"
@@ -149,8 +157,8 @@ export const PetPassportDrawer = ({ petId }) => {
                 <div className="stamp-box">CLINIC OFFICIAL STAMP</div>
               </div>
               <div className="text-right">
-                <div className="sig-line">Dr. Khaled ElGendy, DVM</div>
-                <span className="text-xs text-muted">Licensed Veterinary Surgeon</span>
+                <div className="sig-line">&nbsp;</div>
+                <span className="text-xs text-muted">Veterinary surgeon name & signature</span>
               </div>
             </div>
           </div>

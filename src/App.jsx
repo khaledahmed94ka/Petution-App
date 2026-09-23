@@ -126,7 +126,7 @@ const MainApp = () => {
       {activeDrawer === 'importPets' && <ImportModalDrawer targetType="pets" />}
       {activeDrawer === 'importProducts' && <ImportModalDrawer targetType="products" />}
       {activeDrawer === 'petPassport' && <PetPassportDrawer petId={activeModalItem} />}
-      {activeDrawer === 'addVaccine' && <AddVaccineDrawer />}
+      {activeDrawer === 'addVaccine' && <AddVaccineDrawer petId={activeModalItem} />}
       {activeDrawer === 'soapNote' && <SOAPNoteDrawer visitId={activeModalItem} />}
 
       {/* User Profile Modal */}

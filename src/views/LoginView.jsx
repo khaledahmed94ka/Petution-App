@@ -396,6 +396,7 @@ export const LoginView = () => {
 
       {showForgotModal && (
         <ForgotPasswordModal 
+          initialEmail={email}
           onClose={() => setShowForgotModal(false)} 
         />
       )}
