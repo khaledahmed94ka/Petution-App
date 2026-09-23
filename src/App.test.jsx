@@ -156,3 +156,42 @@ describe('invoice form', () => {
     expect(visitSelect.value).toBe('vis-1');
   });
 });
+
+describe('metrics on screen', () => {
+  it('the dashboard shows today\'s paid revenue, not all-time revenue', async () => {
+    const { container } = await renderDemo();
+    act(() => app.setActiveTab('dashboard'));
+    // The sample clinic has one invoice paid today (570) and one paid two weeks ago.
+    expect(container.querySelector('.banner-amount').textContent).toBe('570 EGP');
+
+    act(() => { app.addInvoice({ petId: 'pet-1', status: 'paid', items: [{ productId: 'serv-1', name: 'Exam', type: 'service', quantity: 1, unitPrice: 500 }], taxPercentage: 0 }); });
+    act(() => { app.addInvoice({ petId: 'pet-1', status: 'pending', items: [{ productId: 'serv-1', name: 'Exam', type: 'service', quantity: 1, unitPrice: 500 }], taxPercentage: 0 }); });
+    expect(container.querySelector('.banner-amount').textContent).toBe('1,070 EGP');
+    expect(screen.getByText('No paid revenue yesterday to compare')).toBeTruthy();
+  });
+
+  it('analytics marks untracked KPIs instead of showing zeros', async () => {
+    const { container } = await renderDemo();
+    act(() => app.setActiveTab('analytics'));
+    expect(container.querySelectorAll('.kpi-card')).toHaveLength(18);
+    expect(container.querySelectorAll('.kpi-untracked')).toHaveLength(6);
+    expect(screen.getAllByText('Not tracked yet')).toHaveLength(6);
+  });
+});
+
+describe('demo clinic', () => {
+  it('shows a realistic day on the dashboard', async () => {
+    const { container } = await renderDemo();
+    act(() => app.setActiveTab('dashboard'));
+    const pulse = Object.fromEntries([...container.querySelectorAll('.pulse-card')].map(card => [
+      card.querySelector('.card-lbl').textContent, card.querySelector('.card-val').textContent
+    ]));
+    expect(pulse).toMatchObject({ 'Visits Today': '2', 'In Progress': '1', 'Scheduled Queue': '1', '% Recurring (30d)': '33%' });
+    const alerts = [...container.querySelectorAll('.alert-card')].map(card => card.textContent);
+    expect(alerts).toEqual(['1Overdue reminders', '1Low stock products', '1Reminders due in 7 days', '0Unpaid invoices']);
+    expect([...container.querySelectorAll('.queue-item')].map(item => item.textContent)).toEqual([
+      '10:30 AMRockyVaccinationin-progress',
+      '06:00 PMMiloCheck-upscheduled'
+    ]);
+  });
+});

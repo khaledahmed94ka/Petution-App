@@ -4,21 +4,22 @@ import {
   UserPlus, 
   Dog, 
   MessageCircle, 
-  ArrowRight, 
-  GripVertical
+  ArrowRight
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { dashboardMetrics } from '../utils/metrics';
+
+const formatMoney = (value) => `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} EGP`;
 
 export const DashboardView = () => {
-  const { user, clients, pets, visits, invoices, products, expenses = [], settings, team, setActiveDrawer, setActiveTab } = useApp();
+  const { user, clients, pets, visits, invoices, products, reminders, expenses = [], settings, team, invitations, setActiveDrawer, setActiveTab } = useApp();
   const [showOnboarding, setShowOnboarding] = React.useState(true);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const totalRevenue = invoices
-    .filter(i => i.status === 'paid')
-    .reduce((sum, i) => sum + i.totalAmount, 0);
+  const metrics = dashboardMetrics({ visits, invoices, products, reminders });
+  const change = metrics.revenueChange;
 
   // Calculate Onboarding Tasks Completion
   const onboardingTasks = [
@@ -88,7 +89,7 @@ export const DashboardView = () => {
       id: 'task-team',
       title: 'Invite Team / Vets',
       desc: 'Add associate vets, receptionists, and clinic staff to your workspace.',
-      completed: team.length > 1,
+      completed: team.length > 1 || invitations.length > 0,
       btnText: 'Invite Team Member',
       action: () => setActiveDrawer('inviteMember')
     }
@@ -178,8 +179,10 @@ export const DashboardView = () => {
       <div className="revenue-banner">
         <div className="revenue-info">
           <span className="banner-sub">TODAY'S REVENUE</span>
-          <h1 className="banner-amount">{totalRevenue} EGP</h1>
-          <span className="banner-change">+0% vs yesterday</span>
+          <h1 className="banner-amount">{formatMoney(metrics.revenueToday)}</h1>
+          <span className="banner-change">
+            {change === null ? 'No paid revenue yesterday to compare' : `${change >= 0 ? '+' : ''}${change}% vs yesterday`}
+          </span>
         </div>
         <button className="view-all-btn" onClick={() => setActiveTab('visits')}>
           View All Visits <ArrowRight size={16} />
@@ -193,33 +196,33 @@ export const DashboardView = () => {
       </div>
 
       <div className="metrics-grid-7">
-        <div className="card pulse-card">
-          <span className="card-val">{visits.length}</span>
+        <div className="card pulse-card" title="Visits dated today, excluding cancelled">
+          <span className="card-val">{metrics.visitsToday}</span>
           <span className="card-lbl">Visits Today</span>
         </div>
         <div className="card pulse-card">
-          <span className="card-val">{visits.filter(v => v.state === 'in-progress').length}</span>
+          <span className="card-val">{metrics.inProgress}</span>
           <span className="card-lbl">In Progress</span>
         </div>
-        <div className="card pulse-card">
-          <span className="card-val">0</span>
+        <div className="card pulse-card" title="Scheduled visits after today">
+          <span className="card-val">{metrics.bookedLater}</span>
           <span className="card-lbl">Booked Not Today</span>
         </div>
-        <div className="card pulse-card">
-          <span className="card-val">{visits.filter(v => v.state === 'scheduled').length}</span>
+        <div className="card pulse-card" title="Visits scheduled for today that haven't started">
+          <span className="card-val">{metrics.scheduledToday}</span>
           <span className="card-lbl">Scheduled Queue</span>
         </div>
-        <div className="card pulse-card">
-          <span className="card-val">0%</span>
-          <span className="card-lbl">% Recurring</span>
+        <div className="card pulse-card" title="Visits in the last 30 days by pets that had visited before">
+          <span className="card-val">{metrics.recurringPercent === null ? '—' : `${metrics.recurringPercent}%`}</span>
+          <span className="card-lbl">% Recurring (30d)</span>
         </div>
-        <div className="card pulse-card">
+        <div className="card pulse-card" title="Visit ratings are not collected yet">
           <span className="card-val">—</span>
-          <span className="card-lbl">Avg Rating (30d)</span>
+          <span className="card-lbl">Avg Rating (not tracked)</span>
         </div>
-        <div className="card pulse-card">
-          <span className="card-val">0</span>
-          <span className="card-lbl">No Show</span>
+        <div className="card pulse-card" title="Visits in the last 30 days whose date passed while still scheduled">
+          <span className="card-val">{metrics.noShows30d}</span>
+          <span className="card-lbl">No Show (30d)</span>
         </div>
       </div>
 
@@ -229,31 +232,31 @@ export const DashboardView = () => {
       </div>
 
       <div className="alert-cards-grid">
-        <div className="alert-card grad-amber" onClick={() => setActiveTab('clients')}>
+        <div className="alert-card grad-amber" onClick={() => setActiveTab('reminders')}>
           <div className="alert-content">
-            <span className="alert-val">0</span>
-            <span className="alert-lbl">Need action</span>
+            <span className="alert-val">{metrics.overdueReminders}</span>
+            <span className="alert-lbl">Overdue reminders</span>
           </div>
           <ArrowRight size={18} className="alert-arrow" />
         </div>
         <div className="alert-card grad-rose" onClick={() => setActiveTab('products')}>
           <div className="alert-content">
-            <span className="alert-val">0</span>
+            <span className="alert-val">{metrics.lowStock}</span>
             <span className="alert-lbl">Low stock products</span>
           </div>
           <ArrowRight size={18} className="alert-arrow" />
         </div>
-        <div className="alert-card grad-teal" onClick={() => setActiveTab('visits')}>
+        <div className="alert-card grad-teal" onClick={() => setActiveTab('reminders')}>
           <div className="alert-content">
-            <span className="alert-val">0</span>
-            <span className="alert-lbl">Upcoming Follow-ups</span>
+            <span className="alert-val">{metrics.upcomingReminders}</span>
+            <span className="alert-lbl">Reminders due in 7 days</span>
           </div>
           <ArrowRight size={18} className="alert-arrow" />
         </div>
         <div className="alert-card grad-rose" onClick={() => setActiveTab('invoices')}>
           <div className="alert-content">
-            <span className="alert-val">{invoices.filter(i => i.status === 'pending').length}</span>
-            <span className="alert-lbl">Invoices</span>
+            <span className="alert-val">{metrics.pendingInvoices}</span>
+            <span className="alert-lbl">Unpaid invoices</span>
           </div>
           <ArrowRight size={18} className="alert-arrow" />
         </div>
@@ -279,24 +282,24 @@ export const DashboardView = () => {
         </button>
       </div>
 
-      {/* Visit Queues */}
+      {/* Today's Visit Queue */}
       <div className="card queue-card">
         <div className="queue-header">
           <div>
-            <h4>Visit Queue</h4>
-            <p className="text-muted">Drag and drop to reorder instantly.</p>
+            <h4>Today's Visit Queue</h4>
+            <p className="text-muted">Scheduled and in-progress visits for today, by time.</p>
           </div>
         </div>
-        {visits.filter(v => v.state === 'scheduled').length === 0 ? (
-          <div className="empty-state">No scheduled visits in queue.</div>
+        {metrics.queue.length === 0 ? (
+          <div className="empty-state">No visits waiting today.</div>
         ) : (
           <div className="queue-list">
-            {visits.filter(v => v.state === 'scheduled').map(v => (
+            {metrics.queue.map(v => (
               <div key={v.id} className="queue-item">
-                <GripVertical size={16} className="text-light" />
+                <span className="text-muted">{v.time || '—'}</span>
                 <span className="font-semibold">{pets.find(p => p.id === v.petId)?.name || 'Pet'}</span>
                 <span className="text-muted">{v.visitType}</span>
-                <span className="badge badge-teal">{v.state}</span>
+                <span className={`badge ${v.state === 'in-progress' ? 'badge-amber' : 'badge-teal'}`}>{v.state}</span>
               </div>
             ))}
           </div>

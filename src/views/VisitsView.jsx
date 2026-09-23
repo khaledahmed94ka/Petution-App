@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { visitMetrics } from '../utils/metrics';
 import { ManageVisitModal } from '../components/modals/ManageVisitModal';
 
 export const VisitsView = () => {
@@ -9,6 +10,8 @@ export const VisitsView = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [selectedVisit, setSelectedVisit] = useState(null);
+
+  const metrics = visitMetrics(visits);
 
   const filteredVisits = visits.filter(visit => {
     if (stateFilter !== 'all' && visit.state !== stateFilter) return false;
@@ -23,7 +26,7 @@ export const VisitsView = () => {
       <div className="page-header">
         <div>
           <h2>Visits</h2>
-          <p className="text-muted">Track visit queue, progress, and outcomes for clinic: petution.</p>
+          <p className="text-muted">Track the visit queue, progress, and outcomes.</p>
         </div>
         <button className="btn-primary" onClick={() => setActiveDrawer('addVisit')}>
           <Plus size={18} />
@@ -35,22 +38,22 @@ export const VisitsView = () => {
       <div className="metrics-grid-4">
         <div className="card">
           <span className="card-title">Total Visits</span>
-          <div className="card-value">{visits.length}</div>
+          <div className="card-value">{metrics.total}</div>
           <span className="text-muted text-xs">All visits in this clinic</span>
         </div>
         <div className="card">
-          <span className="card-title">New Visits This Month</span>
-          <div className="card-value">{visits.length}</div>
-          <span className="text-muted text-xs">Created this calendar month</span>
+          <span className="card-title">Visits This Month</span>
+          <div className="card-value">{metrics.thisMonth}</div>
+          <span className="text-muted text-xs">Visits dated this calendar month</span>
         </div>
         <div className="card">
           <span className="card-title">Completed Visits Today</span>
-          <div className="card-value">{visits.filter(v => v.state === 'completed').length}</div>
+          <div className="card-value">{metrics.completedToday}</div>
           <span className="text-muted text-xs">Resets daily at 12:00 AM</span>
         </div>
         <div className="card">
           <span className="card-title">Upcoming Visits</span>
-          <div className="card-value">{visits.filter(v => v.state === 'scheduled').length}</div>
+          <div className="card-value">{metrics.upcoming}</div>
           <span className="badge badge-teal">Scheduled</span>
         </div>
       </div>

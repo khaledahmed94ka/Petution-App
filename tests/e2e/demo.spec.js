@@ -72,7 +72,7 @@ test('billing a visit takes stock, prints the items, and cancelling returns the 
   await expect(vaccineRow().locator('td').nth(3)).toHaveText('45');
 
   await goTo(page, 'Visits');
-  await page.locator('tbody tr', { hasText: 'Milo' }).getByRole('button', { name: 'Manage Visit' }).click();
+  await page.locator('tbody tr', { hasText: 'Milo' }).first().getByRole('button', { name: 'Manage Visit' }).click();
   await page.getByRole('button', { name: /Create Invoice/ }).click();
   await page.getByLabel('Item 1').selectOption({ label: 'Feline Rabies Vaccine (45 in stock)' });
   await page.getByLabel('Quantity 1').fill('3');

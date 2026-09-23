@@ -3,6 +3,7 @@ import { Search, Plus, Filter, MessageCircle, Download, Upload } from 'lucide-re
 import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/dataExportImport';
 import { phoneMatches } from '../utils/phone';
+import { clientMetrics } from '../utils/metrics';
 import { ClientProfileModal } from '../components/modals/ClientProfileModal';
 
 export const ClientsView = () => {
@@ -13,6 +14,8 @@ export const ClientsView = () => {
   const [selectedClient, setSelectedClient] = useState(null);
 
   const allTags = Array.from(new Set(clients.flatMap(c => c.tags || [])));
+  const metrics = clientMetrics(clients, pets);
+  const change = metrics.changeVsLastMonth;
 
   const filteredClients = clients.filter(c => {
     const matchesSearch = String(c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -40,7 +43,7 @@ export const ClientsView = () => {
       <div className="page-header">
         <div>
           <h2>Clients</h2>
-          <p className="text-muted">Manage client records for clinic: petution.</p>
+          <p className="text-muted">Manage client records, contact details, and pet owners.</p>
         </div>
         <div className="flex gap-sm">
           <button className="btn-secondary" onClick={handleExport} title="Export Clients CSV">
@@ -60,22 +63,22 @@ export const ClientsView = () => {
       <div className="metrics-grid-4">
         <div className="card">
           <span className="card-title">Total Clients</span>
-          <div className="card-value">{clients.length}</div>
-          <span className="text-muted text-xs">Current filtered clients</span>
+          <div className="card-value">{metrics.total}</div>
+          <span className="text-muted text-xs">{filteredClients.length === metrics.total ? 'All registered clients' : `${filteredClients.length} match the current filter`}</span>
         </div>
         <div className="card">
           <span className="card-title">New Clients This Month</span>
-          <div className="card-value">{clients.length}</div>
-          <span className="badge badge-teal">~0%</span>
+          <div className="card-value">{metrics.newThisMonth}</div>
+          <span className="text-muted text-xs">{change === null ? 'None last month to compare' : `${change >= 0 ? '+' : ''}${change}% vs last month`}</span>
         </div>
         <div className="card">
           <span className="card-title">New Clients Today</span>
-          <div className="card-value">0</div>
-          <span className="badge badge-teal">~0%</span>
+          <div className="card-value">{metrics.newToday}</div>
+          <span className="text-muted text-xs">Registered today</span>
         </div>
         <div className="card">
           <span className="card-title">Clients With Pets</span>
-          <div className="card-value">{clients.filter(c => c.pets && c.pets.length > 0).length}</div>
+          <div className="card-value">{metrics.withPets}</div>
           <span className="text-muted text-xs">Owners with linked pets</span>
         </div>
       </div>
