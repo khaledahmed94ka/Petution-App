@@ -59,12 +59,13 @@
 - **Net Profit** — Analytics view subtracts total expenses from revenue
 - **Full CRUD** — Add and delete individual expense entries
 
-### 🔐 Authentication System
+### 🔐 Authentication & Accounts
 
-- **Login Screen** — Google, Apple, Email/Password login options
-- **Clinic Registration** — Register new clinic workspace on first login
-- **Demo Access** — Instant demo login with pre-populated data
-- **Profile Drawer** — View logged-in user info with logout button
+- **Firebase Authentication** — Google and Email/Password sign-in, sign-up, and real password-reset emails
+- **Per-account data** — Each account's clinic records live in Firestore under `users/{uid}/`, and `firestore.rules` lets only that signed-in user read or write them
+- **Starts signed out** — Nothing in the browser can mark someone as logged in; Firebase decides
+- **Demo mode** — "Open Demo" loads a sample clinic with no account. Demo data stays in this browser, never reaches the cloud, and is wiped on exit
+- **Profile Drawer** — View signed-in user info and sign out (signing out clears clinic data from the page)
 
 ### 🚀 Getting Started Onboarding
 
@@ -75,9 +76,10 @@
 
 ### 🔧 System Features
 
-- **Multi-Workspace** — Register and switch between multiple clinic workspaces, **delete workspaces** from Sidebar or Settings Danger Zone
-- **Data Persistence** — All data saved to `localStorage` (clients, pets, visits, products, invoices, expenses, vaccines, SOAP notes, team, settings, notifications, stock logs)
-- **Import/Export** — CSV import/export for Clients, Pets, Products. Full JSON system backup & restore (now includes vaccines & SOAP notes)
+- **Multi-Workspace** — Register and switch between clinic workspace names, **delete workspaces** from Sidebar or Settings Danger Zone. (Workspaces in one account currently share the same records.)
+- **Data Persistence** — Every change is saved to Firestore through one store and the screen mirrors live snapshots, so edits survive reloads and appear on other devices. Failed saves show a banner.
+- **Import/Export** — CSV import/export for Clients, Pets, Products. Full JSON backup of every collection; restore merges into the clinic
+- **Shopify Sync (optional)** — Off by default. A clinic can switch it on in Settings → Integrations and enter its own `*.myshopify.com` store; new clients/products are then sent with the user's Firebase ID token
 - **Responsive Design** — Mobile-first layout with breakpoints at 640px, 768px, and 1024px
 - **Notifications** — Bell icon with unread count, mark-all-read, persistent across sessions
 - **Touch-Friendly** — 44px minimum touch targets, safe-area insets for iPhone notch, scrollable tabs
@@ -92,7 +94,10 @@
 | **Vite 5** | Build tool & dev server |
 | **Lucide React** | Icon library |
 | **Vanilla CSS** | Mobile-first responsive styling |
-| **localStorage** | Client-side data persistence |
+| **Firebase Auth + Firestore** | Sign-in and per-account data storage |
+| **Express** | Serves the built app on Render (no data stored server-side) |
+| **Vitest + Testing Library** | Unit and screen tests |
+| **Playwright + Firebase emulators** | Browser tests and security-rules tests |
 | **GitHub Pages** | Deployment via `gh-pages` |
 | **Render.com** | Production deployment via `render.yaml` |
 
@@ -105,8 +110,19 @@ petution-app/
 ├── index.html                    # Entry HTML with viewport & Google Fonts
 ├── vite.config.js                # Vite config (base path, dev server port)
 ├── render.yaml                   # Render.com deployment config
+├── firestore.rules               # Firestore security rules (users/{uid}/** only)
+├── firebase.json                 # Rules path + local emulator ports
+├── .env.example                  # Firebase web settings to copy into .env
 ├── .node-version                 # Node 20.11.0 for Render
 ├── package.json                  # Scripts, dependencies
+├── playwright.config.js          # Browser tests (demo + emulator projects)
+│
+├── server/
+│   └── index.js                  # Express server for the built app (mock API only with ENABLE_MOCK_API=true)
+│
+├── tests/
+│   ├── e2e/                      # Playwright browser tests
+│   └── rules/                    # Firestore security rules tests (emulators)
 │
 ├── src/
 │   ├── main.jsx                  # React DOM entry point
@@ -114,7 +130,18 @@ petution-app/
 │   ├── index.css                 # Global mobile-first responsive styles
 │   │
 │   ├── context/
-│   │   └── AppContext.jsx        # Central state management (React Context)
+│   │   └── AppContext.jsx        # Session, clinic data mirror, and every mutation
+│   │
+│   ├── services/
+│   │   ├── firebaseAuth.js       # Firebase init, sign-in/up/out, password reset
+│   │   ├── firestoreDb.js        # Store for signed-in accounts (Firestore, live listeners)
+│   │   ├── demoStore.js          # Store for demo mode (this browser only)
+│   │   ├── legacyLocalData.js    # Finds records older versions left in localStorage
+│   │   └── shopifySync.js        # Optional per-clinic Shopify sync
+│   │
+│   ├── data/
+│   │   ├── collections.js        # List of stored collections, sorting
+│   │   └── demoSeed.js           # Sample clinic for demo mode
 │   │
 │   ├── components/
 │   │   ├── Sidebar.jsx           # Desktop sidebar + mobile off-canvas nav
@@ -149,9 +176,10 @@ petution-app/
 │   │   └── RegisterClinicView.jsx
 │   │
 │   └── utils/
-│       └── dataExportImport.js   # CSV/JSON export & import utilities
+│       ├── dataExportImport.js   # CSV/JSON export & import utilities
+│       └── ids.js                # Random record IDs, local dates, slugs
 │
-└── dist/                         # Production build output
+└── dist/                         # Production build output (not committed)
 ```
 
 ---
@@ -172,11 +200,33 @@ cd Petution-App
 # Install dependencies
 npm install
 
+# Add your Firebase web settings (Firebase console → Project settings → Your apps)
+cp .env.example .env
+
 # Start development server
 npm run dev
 ```
 
-The app will be running at `http://localhost:3000`
+The app will be running at `http://localhost:3000`. Without a `.env`, sign-in is disabled and only the demo is available.
+
+### Firebase Setup
+
+1. In the Firebase console, enable **Authentication** → Sign-in method → **Email/Password** and **Google**.
+2. Add every domain you serve the app from (e.g. `khaledahmed94ka.github.io`, your Render domain) under Authentication → Settings → **Authorized domains**.
+3. Create a **Firestore** database and deploy the security rules:
+
+```bash
+npx firebase-tools login
+npx firebase-tools deploy --only firestore:rules --project <your-project-id>
+```
+
+### Local Development Against Emulators
+
+To work without touching the real project, start the Auth and Firestore emulators (needs Java 11+) and set `VITE_USE_FIREBASE_EMULATORS=true` in `.env`:
+
+```bash
+npx firebase-tools emulators:start --only auth,firestore --project demo-petution
+```
 
 ### Build for Production
 
@@ -191,7 +241,8 @@ npm run build
 1. Go to [dashboard.render.com](https://dashboard.render.com/)
 2. Click **New +** → **Blueprints**
 3. Select your repository `khaledahmed94ka/Petution-App`
-4. Render will automatically load `render.yaml` and launch your site!
+4. Render loads `render.yaml` and asks for the `VITE_FIREBASE_*` values (they are built into the app, so redeploy after changing them)
+5. `npm start` serves the built app. The prototype REST API is not exposed unless `ENABLE_MOCK_API=true`
 
 #### Option B: GitHub Pages
 
@@ -199,7 +250,19 @@ npm run build
 npm run deploy
 ```
 
-This runs `vite build` followed by `gh-pages -d dist`.
+This runs `vite build` followed by `gh-pages -d dist`. Your local `.env` supplies the Firebase settings for this build.
+
+---
+
+## 🧪 Testing
+
+```bash
+npm test               # Unit + screen tests (Vitest), no Firebase needed
+npm run test:e2e       # Browser tests in demo mode (Playwright)
+npm run test:emulator  # Security rules + browser tests against Firebase emulators (needs Java)
+```
+
+GitHub Actions runs all three on pushes to `main` and on pull requests (`.github/workflows/ci.yml`).
 
 ---
 
@@ -216,30 +279,16 @@ This runs `vite build` followed by `gh-pages -d dist`.
 
 ## 💾 Data Architecture
 
-All data is managed via React Context (`AppContext.jsx`) and persisted to `localStorage`:
+`AppContext.jsx` holds the session and a live mirror of the clinic's data. Every change goes through one store:
 
-| Data | localStorage Key | Features |
-|------|-----------------|----------|
-| Clients | `petution_clients` | Add, search, tag filter, CSV import/export |
-| Pets | `petution_pets` | Add, species filter, microchip, blood group, health tracking, CSV import/export |
-| Visits | `petution_visits` | Add, state transitions, date/state filtering, SOAP notes |
-| Products | `petution_products` | Full CRUD, stock alerts, CSV import/export |
-| Invoices | `petution_invoices` | Add, status/date filtering, print receipt |
-| Expenses | `petution_expenses` | Add/delete, category filtering, date range |
-| Vaccines | `petution_vaccines` | Add/delete, linked to pets, passport view |
-| SOAP Notes | `petution_soap_notes` | Create/update, linked to visits, printable Rx |
-| Team | `petution_team` | Invite, role management, remove |
-| Settings | `petution_settings` | Organization profile, persisted |
-| Workspaces | `petution_workspaces` | Multi-clinic workspace switching & deletion |
-| Active Workspace | `petution_active_ws` | Currently selected workspace |
-| Stock Logs | `petution_stocklogs` | Automatic logging on product changes |
-| Notifications | `petution_notifications` | Bell icon, unread tracking |
-| Invitations | `petution_invitations` | Team invitation tracking |
-| User Auth | `petution_user` | Login state, email, name, provider |
+- **Signed-in accounts** → Firestore, one subcollection per record type under `users/{uid}/`: `clients`, `pets`, `visits`, `products`, `invoices`, `expenses`, `vaccines`, `soapNotes`, `reminders`, `team`, `invitations`, `stockLogs`, `notifications`, `workspaces`, and `settings/global`.
+- **Demo mode** → the same collections in this browser's localStorage (`petution_demo_data_v1`), cleared on exit.
+
+Records saved in localStorage by older versions (`petution_clients`, etc.) are not used any more. If real records are found, **Settings → Data Backup & Migration** offers to upload them to your account or delete them.
 
 ### Full Backup & Restore
 
-Export all clinic data (clients, pets, visits, products, invoices, expenses, vaccines, SOAP notes, settings) as a single `.json` file from **Settings → Data Backup & Migration**. Restore by uploading the same file.
+Export all clinic data (every collection above plus settings) as a single `.json` file from **Settings → Data Backup & Migration**. Restoring merges the file into the clinic: records with the same ID are replaced by the backup's version, and nothing else is deleted.
 
 ---
 
@@ -251,9 +300,10 @@ Export all clinic data (clients, pets, visits, products, invoices, expenses, vac
 - [ ] WhatsApp API integration for Chats module
 - [ ] Online booking system
 - [ ] Reminder system (SMS/Email for vaccine boosters)
-- [ ] Database backend (Firebase / Supabase)
+- [x] ~~Database backend~~ → Firestore, with per-account security rules
 - [x] ~~Prescription templates~~ → Implemented as SOAP Notes & Rx Prescriptions
-- [x] ~~Multi-user authentication~~ → Implemented (Email, Google, Apple, Demo)
+- [x] ~~Multi-user authentication~~ → Implemented (Email, Google, plus a no-account demo)
+- [ ] Separate data per workspace inside one account
 
 ---
 

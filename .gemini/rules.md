@@ -7,7 +7,7 @@
 
 ## 🏗️ Project Overview
 
-**Petution** is a veterinary clinic management SPA (Single Page Application) built with React 18 + Vite 5. It runs entirely client-side with `localStorage` persistence — no backend server or database.
+**Petution** is a veterinary clinic management SPA (Single Page Application) built with React 18 + Vite 5. Accounts use Firebase Authentication, and each account's clinic data is stored in Firestore under `users/{uid}/` (protected by `firestore.rules`). A no-account demo mode keeps sample data in this browser's localStorage only.
 
 - **GitHub:** https://github.com/khaledahmed94ka/Petution-App
 - **Live (GitHub Pages):** https://khaledahmed94ka.github.io/Petution-App/
@@ -20,12 +20,14 @@
 
 | Layer | Choice | Notes |
 |-------|--------|-------|
-| Framework | React 18 (hooks + context) | No class components |
+| Framework | React 18 (hooks + context) | No class components (except `ErrorBoundary`, which React requires) |
 | Build | Vite 5 | Dev server on port 3000 |
 | Styling | Vanilla CSS (`src/index.css`) | Mobile-first, NO Tailwind |
 | Icons | `lucide-react` | All icons come from here |
 | State | React Context (`AppContext.jsx`) | Single provider, all state centralized |
-| Persistence | `localStorage` | Every state synced via `useEffect` |
+| Auth | Firebase Authentication | Google + Email/Password; `onAuthStateChanged` is the only source of truth |
+| Persistence | Firestore (`users/{uid}/{collection}`) | Demo mode uses localStorage via `demoStore.js` |
+| Tests | Vitest + Testing Library, Playwright, Firebase emulators | `npm test`, `npm run test:e2e`, `npm run test:emulator` |
 | Deployment | GitHub Pages (`gh-pages`) + Render.com (`render.yaml`) | |
 | Node | 20.11.0 (pinned in `.node-version`) | |
 
@@ -34,7 +36,10 @@
 - **Vite MUST stay in `dependencies`** (not `devDependencies`) in `package.json` — Render.com production builds fail otherwise.
 - **Render build command:** `node ./node_modules/vite/bin/vite.js build` — direct Node invocation avoids Linux shell symlink permission issues with `.bin/vite`.
 - **GitHub Pages deploy:** `npm run deploy` → runs `vite build && gh-pages -d dist`.
-- **Base path:** `vite.config.js` sets `base: '/Petution-App/'` for GitHub Pages.
+- **Base path:** `vite.config.js` sets `base: './'` (relative), which works for GitHub Pages and Render.
+- **Firebase settings** are `VITE_FIREBASE_*` build-time env vars (`.env` locally, Render dashboard in production). See `.env.example`.
+- **Render start command:** `npm start` (Express serves `dist/`; the mock API is only mounted with `ENABLE_MOCK_API=true`).
+- **`dist/` is not committed.**
 
 ---
 
@@ -95,46 +100,26 @@ src/
 
 **Everything lives in `AppContext.jsx`.** There is ONE context provider wrapping the entire app.
 
-### How to add new state:
+### How to add a new record type:
 
-1. Define `initialData` array at the top of `AppContext.jsx`
-2. Create `useState` with `localStorage` hydration:
-   ```jsx
-   const [items, setItems] = useState(() => {
-     const saved = localStorage.getItem('petution_items');
-     return saved ? JSON.parse(saved) : initialData;
-   });
-   ```
-3. Add `useEffect` for persistence:
-   ```jsx
-   useEffect(() => {
-     localStorage.setItem('petution_items', JSON.stringify(items));
-   }, [items]);
-   ```
-4. Create helper functions (`addItem`, `deleteItem`, `updateItem`)
-5. Expose in the `<AppContext.Provider value={{...}}>` object
-6. Update `importFullBackup` to include the new data type
+Clinic data is never kept in component state or written to localStorage directly. It flows through a store:
 
-### Current localStorage Keys
+- `src/services/firestoreDb.js` — signed-in accounts (Firestore, live `onSnapshot` listeners)
+- `src/services/demoStore.js` — demo mode (localStorage, same interface)
 
-| Key | Data |
-|-----|------|
-| `petution_clients` | Client records |
-| `petution_pets` | Pet records |
-| `petution_visits` | Visit records |
-| `petution_products` | Products & services |
-| `petution_invoices` | Invoices |
-| `petution_expenses` | Expense entries |
-| `petution_vaccines` | Vaccine shot records |
-| `petution_soap_notes` | SOAP clinical notes |
-| `petution_team` | Team members |
-| `petution_settings` | Org profile settings |
-| `petution_workspaces` | Clinic workspaces |
-| `petution_active_ws` | Active workspace ID |
-| `petution_stocklogs` | Product stock change logs |
-| `petution_notifications` | Bell notifications |
-| `petution_invitations` | Team invitations |
-| `petution_user` | Auth state (email, name, provider) |
+`AppContext.jsx` subscribes to the store and mirrors each collection into `data`. Mutations call `createRecord` / `updateRecord` / `removeRecord` / `saveMany`, and the screen updates from the store's next snapshot.
+
+1. Add the collection name to `COLLECTIONS` in `src/data/collections.js` (and sample records to `src/data/demoSeed.js` if the demo should have some)
+2. Add mutation helpers in `AppContext.jsx` using `createRecord('items', 'itm', fields)` etc.
+3. Expose the list and helpers in the `<AppContext.Provider value={{...}}>` object
+4. Backups (`SettingsView`) and restore (`importFullBackup`) pick up every collection in `COLLECTIONS` automatically
+5. Add a test in `src/context/AppContext.test.jsx` that the new data survives a reload
+
+### Stored Collections (Firestore `users/{uid}/…`)
+
+`clients`, `pets`, `visits`, `products`, `invoices`, `expenses`, `vaccines`, `soapNotes`, `reminders`, `team`, `invitations`, `stockLogs`, `notifications`, `workspaces`, `settings` (single doc `global`).
+
+Older versions stored these under `petution_*` localStorage keys. They are no longer read, except by `legacyLocalData.js`, which offers to upload real records to the account.
 
 ### Drawer Routing Pattern
 
@@ -193,7 +178,7 @@ All drawer rendering happens in `App.jsx` via conditional checks:
 ### Advanced Features
 11. ✅ Digital Pet Passport & Vaccine Scheduler — Printable vaccination certificate, vaccine shot logger
 12. ✅ SOAP Medical Notes & Rx Prescriptions — S/O/A/P fields, dynamic Rx editor, printable ℞ slip
-13. ✅ Authentication — Login (Google/Apple/Email), clinic registration, demo access
+13. ✅ Authentication — Firebase (Google/Email), real password reset, per-account Firestore data, no-account demo
 14. ✅ Getting Started Onboarding — 8-step collapsible checklist with progress bar
 15. ✅ Multi-Workspace — Create, switch, delete clinic workspaces
 16. ✅ Notifications — Bell icon, unread count, mark-all-read
@@ -205,7 +190,7 @@ All drawer rendering happens in `App.jsx` via conditional checks:
 - ❌ WhatsApp API integration
 - ❌ Online booking system
 - ❌ SMS/Email reminders for vaccine boosters
-- ❌ Database backend (Firebase/Supabase)
+- ❌ Separate data per workspace within one account (workspaces are labels today)
 
 ---
 
@@ -236,6 +221,13 @@ npx gh-pages -d dist
 git push origin main
 ```
 
+### Testing
+```bash
+npm test               # Vitest unit + screen tests
+npm run test:e2e       # Playwright, demo mode
+npm run test:emulator  # rules + Playwright against Firebase emulators (Java required)
+```
+
 ---
 
 ## 👤 User Preferences (Khaled)
@@ -244,6 +236,6 @@ git push origin main
 - Wants professional, production-grade UI
 - Uses Render.com + GitHub Pages for dual deployment
 - Clinic name: "Petution Veterinary Center"
-- Default vet name in demo data: "Dr. Khaled ElGendy"
+- Demo user / default vet name in demo data: "Demo Vet" (real accounts use the signed-in user's name)
 - Location: Cairo, Egypt
 - Prefers features inspired by professional vet software (referenced Veterian app screenshots)
